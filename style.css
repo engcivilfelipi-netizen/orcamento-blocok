@@ -1,0 +1,81 @@
+* { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+body { background-color: #0b0f19; color: #e2e8f0; padding: 20px; margin: 0; }
+
+.header-main { text-align: center; margin-bottom: 25px; }
+.header-main h1 { font-size: 32px; font-weight: 800; margin-bottom: 5px; color: #fff; letter-spacing: 2px;}
+.highlight { color: #ff6b00; }
+.header-main p { color: #94a3b8; font-size: 14px; margin: 0; }
+
+.dashboard { display: flex; gap: 20px; max-width: 1400px; margin: 0 auto; align-items: flex-start; }
+
+.painel-planta { flex: 2; background: #1a2235; padding: 20px; border-radius: 12px; border: 1px solid #2e3c54; position: sticky; top: 20px;}
+.controles-planta { display: flex; gap: 10px; margin-bottom: 15px; }
+
+.status-bar { background: #0b0f19; color: #00f0ff; padding: 10px; text-align: center; border-radius: 6px; margin-bottom: 15px; font-weight: bold; border: 1px solid #00f0ff33; letter-spacing: 1px;}
+.canvas-container { width: 100%; height: 650px; overflow: auto; border: 2px dashed #334155; background: #0f172a; cursor: crosshair; border-radius: 8px;}
+
+.painel-calculadora { flex: 1.2; }
+
+.controle-insercao { background: #1a2235; padding: 20px; border-radius: 12px; border: 1px solid #2e3c54; margin-bottom: 15px; }
+.titulo-secao { font-size: 14px; font-weight: bold; color: #00f0ff; letter-spacing: 1px; display: block; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+.insercao-manual { display: flex; gap: 10px; margin-top: 10px; }
+
+.lista-paredes { max-height: 250px; overflow-y: auto; margin-bottom: 10px; background: #1a2235; border-radius: 12px; border: 1px solid #2e3c54;}
+table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; color: #cbd5e1; }
+th, td { padding: 10px; border-bottom: 1px solid #334155; }
+th { background-color: #0f172a; font-weight: bold; color: #94a3b8; position: sticky; top: 0;}
+
+.acoes-tabela { display: flex; gap: 5px; justify-content: center; }
+.btn-remover { background: transparent; color: #ef4444; border: 1px solid #ef4444; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s;}
+.btn-remover:hover { background: #ef4444; color: #fff; }
+.btn-add-vao { background: transparent; color: #f59e0b; border: 1px solid #f59e0b; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-weight: bold; transition: 0.2s;}
+.btn-add-vao:hover { background: #f59e0b; color: #fff; }
+.badge-esp { background: #334155; color: #fff; padding: 3px 8px; border-radius: 12px; font-size: 11px; border: 1px solid #475569;}
+
+.form-group-inline { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; margin-top: 10px; gap: 10px;}
+.form-group-inline label { font-size: 13px; color: #cbd5e1; width: 65%;}
+
+.input-tech, .input-tech-small { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #fff; font-size: 14px; outline: none; transition: 0.3s;}
+.input-tech-small { width: 35%; text-align: right;}
+.input-tech:focus, .input-tech-small:focus { border-color: #00f0ff; box-shadow: 0 0 8px rgba(0, 240, 255, 0.2); }
+
+.btn-tech { flex: 1; padding: 12px; background: #0f172a; color: #94a3b8; border: 1px solid #334155; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; text-align: center; }
+.btn-tech:hover:not(:disabled) { border-color: #00f0ff; color: #00f0ff; }
+.btn-tech:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-tech-danger { padding: 12px; background: #0f172a; color: #ef4444; border: 1px solid #ef4444; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; text-align: center; }
+.btn-tech-danger:hover { background: #ef4444; color: #fff; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);}
+
+.btn-tech-primary { padding: 12px 20px; background: #ff6b00; color: #fff; border: none; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; }
+.btn-tech-primary:hover { background: #e65c00; box-shadow: 0 0 10px rgba(255, 107, 0, 0.4); }
+
+.btn-tech-excel { width: 100%; padding: 12px; background: transparent; color: #10b981; border: 1px solid #10b981; font-weight: bold; cursor: pointer; border-radius: 6px; transition: 0.3s; }
+.btn-tech-excel:hover { background: #10b981; color: #fff; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+
+.btn-tech-run { width: 100%; padding: 15px; background: #00f0ff; color: #0b0f19; border: none; font-size: 16px; font-weight: 900; cursor: pointer; border-radius: 6px; transition: 0.3s; letter-spacing: 1px;}
+.btn-tech-run:hover { background: #00d2df; box-shadow: 0 0 15px rgba(0, 240, 255, 0.5); }
+
+/* Switch Toggle */
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider { background-color: #00f0ff; }
+input:checked + .slider:before { transform: translateX(20px); background-color: #0b0f19;}
+
+/* ESTILO PDF (Fundo Branco) */
+.resultado-box { margin-top: 20px; border-radius: 8px; overflow: hidden; background: transparent;}
+#pdfContent { background: white; color: black; position: relative; z-index: 1;}
+.pdf-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; text-align: center; color: #333;}
+.pdf-table th, .pdf-table td { border: 1px solid #ddd; padding: 8px; }
+.pdf-table th { background: #2c3e50; color: white; }
+.resumo-financeiro { background: #f8f9fa; padding: 15px; margin-top: 20px; border-left: 5px solid #ff6b00; color: #333;}
+
+/* ESTILO COMPARATIVO PDF */
+.box-comparativo { border: 1px solid #bdc3c7; border-radius: 6px; padding: 15px; margin-top: 15px; background: #fdfdfd; }
+.grafico-linha { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px;}
+.barra-bg { flex: 1; background: #ecf0f1; height: 18px; border-radius: 4px; margin: 0 10px; overflow: hidden; position: relative;}
+.barra-fill-bad { background-color: #e74c3c !important; height: 100%; min-height: 18px; display: block; }
+.barra-fill-good { background-color: #27ae60 !important; height: 100%; min-height: 18px; display: block; }
+.lbl-grafico { width: 120px; font-weight: bold; color: #2c3e50;}
+.val-grafico { width: 100px; text-align: right; font-weight: bold;}
