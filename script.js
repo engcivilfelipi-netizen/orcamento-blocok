@@ -34,7 +34,7 @@ try {
 } catch (erro) { console.error("Erro Nuvem:", erro); }
 
 // ==========================================
-// ⚙️ GESTÃO DE PREÇOS NA NUVEM
+// ⚙️ GESTÃO DE PREÇOS E ADMIN
 // ==========================================
 async function carregarPrecosDaNuvem() {
     if (!db) return;
@@ -45,7 +45,7 @@ async function carregarPrecosDaNuvem() {
             precosBlocok = {
                 "10": { avista: 103.52, prazo: 109.07 }, "13": { avista: 113.03, prazo: 118.98 },
                 "15": { avista: 120.74, prazo: 127.09 }, "20": { avista: 134.13, prazo: 141.19 },
-                "descontoMaximo": 5 // Padrão 5%
+                "descontoMaximo": 5
             };
             await db.collection("configuracoes").doc("precosGlobais").set(precosBlocok);
         }
@@ -206,7 +206,7 @@ function atualizarTabela() { const t = document.getElementById('corpoTabela'); i
 document.getElementById('btnExportarExcel').onclick = () => { if(paredesMedidas.length === 0) return alert("Lista vazia."); let csv = "Item;Tipo;Espessura(cm);Comp_Base(m);Altura_Oitao(m);Area_Vaos(m2)\n"; paredesMedidas.forEach((p, i) => { csv += `${i+1};${p.tipo ? p.tipo.toUpperCase() : 'PAREDE'};${p.esp};${p.comp.toFixed(2)};${p.tipo === 'oitao' ? p.alturaOitao.toFixed(2) : "-"};${p.areaVaos.toFixed(2)}\n`; }); let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `BLOCOK_${new Date().getTime()}.csv`; link.click(); };
 
 // ==========================================
-// 🚀 GERAÇÃO DO PDF
+// 🚀 GERAÇÃO DO PDF E ROMANEIO
 // ==========================================
 
 verificarSessao();
@@ -215,17 +215,14 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     e.preventDefault(); salvarEstadoLocal(); 
     if(paredesMedidas.length === 0) return alert("Lista vazia. Meça as paredes primeiro.");
 
-    // LEITURA DOS DADOS LOGÍSTICOS E COMERCIAIS
     let frete = parseFloat(document.getElementById('valorFrete').value || 0);
     let descontoPct = parseFloat(document.getElementById('valorDesconto').value || 0);
     let perfilAtual = sessionStorage.getItem('blocok_perfil');
     let limiteDesconto = precosBlocok.descontoMaximo !== undefined ? precosBlocok.descontoMaximo : 5;
 
-    // TRAVA DE SEGURANÇA: Se for vendedor e ultrapassar o limite, bloqueia!
     if(perfilAtual === 'vendedor' && descontoPct > limiteDesconto) {
-        alert(`❌ ATENÇÃO: O desconto máximo autorizado pela diretoria é de ${limiteDesconto}%.\nO valor foi corrigido automaticamente para o máximo permitido.`);
-        document.getElementById('valorDesconto').value = limiteDesconto;
-        descontoPct = limiteDesconto;
+        alert(`❌ ATENÇÃO: O desconto máximo autorizado pela diretoria é de ${limiteDesconto}%.\nO valor foi corrigido automaticamente.`);
+        document.getElementById('valorDesconto').value = limiteDesconto; descontoPct = limiteDesconto;
     }
 
     let nome = document.getElementById('nomeProjetoAtivo').value || document.getElementById('whatsappCliente').value || "Cliente";
@@ -249,6 +246,9 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         totalAreaBruta += areaBrutaParede; totalAreaLiquida += areaLiquidaParede;
     });
 
+    // ==========================================
+    // PARTE 1: PDF DA PROPOSTA COMERCIAL (COM PREÇOS)
+    // ==========================================
     let html = `
     <div id="pdfContent" style="padding: 30px; font-family: Arial, sans-serif; position: relative; overflow: hidden; background: white; color: black; min-height: 800px;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 140px; color: rgba(0, 0, 0, 0.04); font-weight: 900; letter-spacing: 15px; z-index: 0; pointer-events: none;">BLOCOK</div>
@@ -261,15 +261,23 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <h3 style="color: #2c3e50;">1. Quantitativo de Painéis (${pag.toUpperCase()})</h3>
             <table class="pdf-table"><tr><th>Espessura</th><th>Área Bruta</th><th>Descontos</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th></tr>`;
 
+    let linhasRomaneioBlocos = ''; // Variável para montar o Romaneio depois
+    let iBloco = 1;
+
     for (let esp in resumoParedes) {
         let d = resumoParedes[esp]; if (d.bruta === 0) continue;
         let qtd = Math.ceil(d.liquida / 0.81); let preco = precosBlocok[esp][pag] * qtd;
         valorTotalBlocos += preco;
         html += `<tr><td><strong>${esp} cm</strong></td><td>${d.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${d.vaos.toFixed(2)} m²</td><td style="color:#27ae60; font-weight:bold;">${d.liquida.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
+        
+        // Alimenta o Romaneio
+        linhasRomaneioBlocos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">${iBloco++}</td><td style="border: 1px solid #000; padding: 8px;">Painel BLOCOK de ${esp} cm</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${qtd} peças</strong></td></tr>`;
     }
     html += `</table>`;
 
     let valorTotalInsumos = 0;
+    let linhasRomaneioInsumos = ''; // Variável para o Romaneio
+    
     if (incluirInsumos) {
         let sacos = Math.ceil(totalAreaLiquida / 10), tubos = Math.ceil(totalAreaLiquida / 3), rolos = Math.ceil((totalAreaLiquida * 2.2) / 50);
         let pArg = parseFloat(document.getElementById('precoArgamassa').value || 0), pPU = parseFloat(document.getElementById('precoPU').value || 0), pTela = parseFloat(document.getElementById('precoTela').value || 0);
@@ -279,9 +287,13 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <tr><td>Argamassa (20kg)</td><td>${sacos} scs</td><td>R$ ${pArg.toFixed(2)}</td><td>R$ ${(sacos*pArg).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
             <tr><td>Espuma PU (500ml)</td><td>${tubos} un.</td><td>R$ ${pPU.toFixed(2)}</td><td>R$ ${(tubos*pPU).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
             <tr><td>Tela Fibra (50m)</td><td>${rolos} rls</td><td>R$ ${pTela.toFixed(2)}</td><td>R$ ${(rolos*pTela).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr></table>`;
+            
+        // Alimenta o Romaneio
+        linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Argamassa Polimérica (Saco 20kg)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${sacos} sacos</strong></td></tr>`;
+        linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Espuma Expansiva PU (Tubo 500ml)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${tubos} tubos</strong></td></tr>`;
+        linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Tela de Fibra de Vidro (Rolo 50m)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${rolos} rolos</strong></td></tr>`;
     }
 
-    // CÁLCULOS MATEMÁTICOS DE FECHAMENTO (Subtotal -> Desconto -> Frete -> Total)
     let subtotalObra = valorTotalBlocos + valorTotalInsumos;
     let valorDescontoReais = subtotalObra * (descontoPct / 100);
     let valorGlobalObra = subtotalObra - valorDescontoReais + frete;
@@ -289,12 +301,8 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     html += `<div class="resumo-financeiro">
         <div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px;"><span>Subtotal (Produtos):</span><strong>R$ ${subtotalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
     
-    if (descontoPct > 0) {
-        html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #ef4444;"><span>Desconto Concedido (${descontoPct}%):</span><strong>- R$ ${valorDescontoReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
-    }
-    if (frete > 0) {
-        html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #3b82f6;"><span>Frete / Logística:</span><strong>+ R$ ${frete.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
-    }
+    if (descontoPct > 0) { html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #ef4444;"><span>Desconto Concedido (${descontoPct}%):</span><strong>- R$ ${valorDescontoReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`; }
+    if (frete > 0) { html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #3b82f6;"><span>Frete / Logística:</span><strong>+ R$ ${frete.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`; }
 
     html += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#2c3e50; margin-top:10px;"><strong>TOTAL A PAGAR:</strong><strong style="color:#ff6b00;">R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div></div>`;
 
@@ -316,7 +324,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let totalBlocokPronto = subtotalObra + (totalAreaLiquida * parseFloat(document.getElementById('custoBlocokMO').value || 0));
         economiaReais = totalConvPronto - totalBlocokPronto;
         let numeracao = incluirCronograma ? "4" : "3";
-        
         html += `<h3 style="color:#2c3e50; margin-top:25px;">${numeracao}. Análise de Viabilidade Financeira</h3>
             <div class="box-comparativo">
             <h4 style="margin: 0 0 10px 0; color: #555;">Parede Pronta (Material + Mão de Obra)</h4>
@@ -325,17 +332,90 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <div style="text-align:center; margin-top:15px; background:#e8f8f5; padding:10px; color:#27ae60; font-weight:bold; border-radius: 4px;">Economia Estimada: R$ ${economiaReais > 0 ? economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
     }
 
-    html += `<p style="font-size:10px; text-align:center; margin-top:20px; color: #95a5a6;">* Documento gerado digitalmente pelo BLOCOK OS.</p></div></div>
-    <div style="display:flex; gap:10px; margin-top:20px;"><button id="downloadPdf" style="flex:1; padding:15px; background:#ef4444; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 BAIXAR PDF</button>
-    <button id="sendWhatsApp" style="flex:1; padding:15px; background:#10b981; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">💬 MANDAR NO ZAP</button></div>`;
+    html += `<p style="font-size:10px; text-align:center; margin-top:20px; color: #95a5a6;">* Documento gerado digitalmente pelo BLOCOK OS.</p></div>`;
+
+
+    // ==========================================
+    // PARTE 2: HTML INVISÍVEL DO ROMANEIO (SEM PREÇOS)
+    // ==========================================
+    let htmlRomaneio = `
+    <div id="pdfRomaneioContent" style="display:none;">
+        <div style="padding: 40px; font-family: Arial, sans-serif; background: white; color: black; width: 100%; min-height: 800px;">
+            <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
+                <h1 style="margin: 0 0 5px 0; font-size: 22px; text-transform: uppercase;">ORDEM DE SEPARAÇÃO E CARGA (ROMANEIO)</h1>
+                <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
+                <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total Const.:</strong> ${totalAreaLiquida.toFixed(2)} m²</p>
+            </div>
+
+            <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">1. Separação de Painéis BLOCOK</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                <tr style="background: #eee;">
+                    <th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th>
+                    <th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th>
+                    <th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th>
+                </tr>
+                ${linhasRomaneioBlocos}
+            </table>`;
+
+    if (incluirInsumos) {
+        htmlRomaneio += `
+            <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">2. Separação de Insumos</h3>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                <tr style="background: #eee;">
+                    <th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th>
+                    <th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th>
+                    <th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th>
+                </tr>
+                ${linhasRomaneioInsumos}
+            </table>`;
+    }
+
+    htmlRomaneio += `
+            <div style="margin-top: 80px; text-align: center; font-size: 14px;">
+                <p>____________________________________________________________</p>
+                <p>Assinatura do Responsável pela Separação / Expedição</p>
+            </div>
+            <div style="margin-top: 60px; text-align: center; font-size: 14px;">
+                <p>____________________________________________________________</p>
+                <p>Assinatura do Motorista / Conferente da Carga</p>
+            </div>
+            <p style="font-size:10px; text-align:center; margin-top:40px; color: #555;">Documento de uso interno. Valores omitidos por segurança.</p>
+        </div>
+    </div>`;
+
+
+    // ==========================================
+    // PARTE 3: INJEÇÃO DOS BOTÕES NA TELA
+    // ==========================================
+    html += htmlRomaneio; // Adiciona o Romaneio invisível ao final do pacote
+
+    html += `</div>
+    <div style="display:flex; gap:10px; margin-top:20px; flex-wrap: wrap;">
+        <button id="downloadPdf" style="flex:1; min-width: 150px; padding:15px; background:#ef4444; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 PROPOSTA (PDF)</button>
+        <button id="sendWhatsApp" style="flex:1; min-width: 150px; padding:15px; background:#10b981; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">💬 MANDAR NO ZAP</button>
+        <button id="downloadRomaneio" style="flex:1; min-width: 150px; padding:15px; background:#475569; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">🏭 ROMANEIO FÁBRICA</button>
+    </div>`;
 
     const caixa = document.getElementById('caixaResultado'); caixa.innerHTML = html; caixa.style.display = 'block';
 
+    // Ação do PDF da Proposta Comercial (Com preço)
     document.getElementById('downloadPdf').onclick = () => {
-        const btn = document.getElementById('downloadPdf'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#475569";
-        html2pdf().set({ margin:0, filename:`BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(document.getElementById('pdfContent')).save().then(() => {
-            btn.innerText = "✅ PDF Salvo!"; btn.style.backgroundColor = "#10b981";
-            setTimeout(() => { btn.innerText = "📄 BAIXAR PDF"; btn.style.backgroundColor = "#ef4444"; }, 3000);
+        const btn = document.getElementById('downloadPdf'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#94a3b8";
+        html2pdf().set({ margin:0, filename:`Proposta_BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(document.getElementById('pdfContent')).save().then(() => {
+            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#ef4444";
+            setTimeout(() => { btn.innerText = "📄 PROPOSTA (PDF)"; }, 3000);
+        });
+    };
+
+    // Ação do PDF do Romaneio (Sem Preço, Preto e Branco)
+    document.getElementById('downloadRomaneio').onclick = () => {
+        const btn = document.getElementById('downloadRomaneio'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#94a3b8";
+        // Pega apenas a div invisível do Romaneio
+        const elementoRomaneio = document.getElementById('pdfRomaneioContent').children[0];
+        
+        html2pdf().set({ margin:0, filename:`Romaneio_Carga_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(elementoRomaneio).save().then(() => {
+            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#475569";
+            setTimeout(() => { btn.innerText = "🏭 ROMANEIO FÁBRICA"; }, 3000);
         });
     };
 
