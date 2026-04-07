@@ -7,11 +7,12 @@ const USUARIOS = {
     "vendedor2": { senha: "vendas02", perfil: "vendedor" }
 };
 
-const precosBlocok = {
-    "10": { avista: 103.52, prazo: 109.07 },
-    "13": { avista: 113.03, prazo: 118.98 },
-    "15": { avista: 120.74, prazo: 127.09 },
-    "20": { avista: 134.13, prazo: 141.19 }
+// Agora os preços começam zerados e são puxados da Nuvem!
+let precosBlocok = {
+    "10": { avista: 0, prazo: 0 },
+    "13": { avista: 0, prazo: 0 },
+    "15": { avista: 0, prazo: 0 },
+    "20": { avista: 0, prazo: 0 }
 };
 
 let paredesMedidas = []; 
@@ -43,9 +44,6 @@ try {
             firebase.initializeApp(firebaseConfig);
         }
         db = firebase.firestore();
-        console.log("Servidor em Nuvem: CONECTADO!");
-    } else {
-        console.error("Alerta: Arquivos do Firebase não encontrados no index.html.");
     }
 } catch (erro) {
     console.error("Erro ao iniciar a Nuvem:", erro);
@@ -53,11 +51,75 @@ try {
 
 
 // ==========================================
+// ⚙️ GESTÃO DE PREÇOS NA NUVEM (ADMIN)
+// ==========================================
+
+async function carregarPrecosDaNuvem() {
+    if (!db) return;
+    try {
+        const docRef = await db.collection("configuracoes").doc("precosGlobais").get();
+        
+        if (docRef.exists) {
+            precosBlocok = docRef.data();
+        } else {
+            // Se for a primeira vez que entra, ele grava estes preços como padrão inicial na nuvem
+            precosBlocok = {
+                "10": { avista: 103.52, prazo: 109.07 },
+                "13": { avista: 113.03, prazo: 118.98 },
+                "15": { avista: 120.74, prazo: 127.09 },
+                "20": { avista: 134.13, prazo: 141.19 }
+            };
+            await db.collection("configuracoes").doc("precosGlobais").set(precosBlocok);
+        }
+
+        // Povoa os campos do painel Admin (se o admin estiver logado)
+        document.getElementById('p10v').value = precosBlocok["10"].avista;
+        document.getElementById('p10p').value = precosBlocok["10"].prazo;
+        document.getElementById('p13v').value = precosBlocok["13"].avista;
+        document.getElementById('p13p').value = precosBlocok["13"].prazo;
+        document.getElementById('p15v').value = precosBlocok["15"].avista;
+        document.getElementById('p15p').value = precosBlocok["15"].prazo;
+        document.getElementById('p20v').value = precosBlocok["20"].avista;
+        document.getElementById('p20p').value = precosBlocok["20"].prazo;
+        
+        console.log("Tabela de preços sincronizada com a Nuvem.");
+    } catch (error) {
+        console.error("Erro ao buscar preços:", error);
+    }
+}
+
+document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
+    let btn = document.getElementById('btnSalvarPrecosGlobais');
+    btn.innerText = "⏳ Atualizando Servidor..."; btn.disabled = true;
+
+    const novosPrecos = {
+        "10": { avista: parseFloat(document.getElementById('p10v').value || 0), prazo: parseFloat(document.getElementById('p10p').value || 0) },
+        "13": { avista: parseFloat(document.getElementById('p13v').value || 0), prazo: parseFloat(document.getElementById('p13p').value || 0) },
+        "15": { avista: parseFloat(document.getElementById('p15v').value || 0), prazo: parseFloat(document.getElementById('p15p').value || 0) },
+        "20": { avista: parseFloat(document.getElementById('p20v').value || 0), prazo: parseFloat(document.getElementById('p20p').value || 0) }
+    };
+
+    try {
+        await db.collection("configuracoes").doc("precosGlobais").set(novosPrecos);
+        precosBlocok = novosPrecos;
+        alert("Preços atualizados com sucesso! Toda a equipe já está usando a nova tabela.");
+    } catch (error) {
+        alert("Erro ao salvar preços. Tente novamente.");
+    } finally {
+        btn.innerText = "💾 ATUALIZAR TABELA DE PREÇOS NO SERVIDOR"; btn.disabled = false;
+    }
+};
+
+
+// ==========================================
 // 📁 MOTOR DE LOGIN E SESSÃO
 // ==========================================
 
 function aplicarRestricoes(perfil) {
-    if (perfil === 'vendedor') {
+    if (perfil === 'admin') {
+        document.getElementById('painelAdmin').style.display = 'block'; // Mostra gestão de preços
+    } else if (perfil === 'vendedor') {
+        document.getElementById('painelAdmin').style.display = 'none'; // Esconde gestão de preços
         document.getElementById('btnLimpar').style.display = 'none';
         document.getElementById('btnExcluirProjeto').style.display = 'none';
         
@@ -65,9 +127,7 @@ function aplicarRestricoes(perfil) {
         camposBloqueados.forEach(id => {
             let campo = document.getElementById(id);
             if(campo) {
-                campo.readOnly = true;
-                campo.style.backgroundColor = "#1e293b";
-                campo.style.color = "#64748b";
+                campo.readOnly = true; campo.style.backgroundColor = "#1e293b"; campo.style.color = "#64748b";
                 campo.title = "Apenas o Admin pode alterar estes valores base.";
             }
         });
@@ -83,10 +143,10 @@ function verificarSessao() {
         aplicarRestricoes(perfil);
         carregarEstadoLocal();
         atualizarSelectProjetosNuvem();
+        carregarPrecosDaNuvem(); // Baixa os preços antes de qualquer cálculo
     }
 }
 
-// BOTAO DE LOGIN AGORA É A PROVA DE FALHAS
 document.getElementById('btnLogin').onclick = () => {
     const user = document.getElementById('userInput').value.trim().toLowerCase();
     const pass = document.getElementById('passInput').value;
@@ -97,38 +157,29 @@ document.getElementById('btnLogin').onclick = () => {
         sessionStorage.setItem('blocok_perfil', USUARIOS[user].perfil);
         location.reload();
     } else {
-        erro.style.display = 'block';
-        setTimeout(() => { erro.style.display = 'none'; }, 3000);
+        erro.style.display = 'block'; setTimeout(() => { erro.style.display = 'none'; }, 3000);
     }
 };
 
 document.getElementById('btnLogout').onclick = () => {
-    sessionStorage.removeItem('blocok_logado');
-    sessionStorage.removeItem('blocok_perfil');
-    location.reload();
+    sessionStorage.removeItem('blocok_logado'); sessionStorage.removeItem('blocok_perfil'); location.reload();
 };
 
 
 // ==========================================
-// 📁 BANCO DE DADOS NA NUVEM E AUTO-SAVE LOCAL
+// 📁 BANCO DE DADOS NA NUVEM E AUTO-SAVE
 // ==========================================
 
 async function atualizarSelectProjetosNuvem() {
     const select = document.getElementById('selectProjetos');
     if(!select || !db) return;
-    
     select.innerHTML = '<option value="">⏳ Carregando obras da Nuvem...</option>';
     try {
         const snapshot = await db.collection("obras").get();
         select.innerHTML = '<option value="">-- Abrir Obra da Nuvem --</option>';
-        if(snapshot.empty) {
-            select.innerHTML = '<option value="">Nenhuma obra salva ainda</option>';
-            return;
-        }
+        if(snapshot.empty) { select.innerHTML = '<option value="">Nenhuma obra salva ainda</option>'; return; }
         snapshot.forEach(doc => { select.innerHTML += `<option value="${doc.id}">${doc.id}</option>`; });
-    } catch (error) {
-        select.innerHTML = '<option value="">Erro ao conectar na nuvem</option>';
-    }
+    } catch (error) { select.innerHTML = '<option value="">Erro ao conectar na nuvem</option>'; }
 }
 
 function salvarEstadoLocal() {
@@ -155,82 +206,52 @@ function carregarEstadoLocal() {
                 const perfil = sessionStorage.getItem('blocok_perfil');
                 const isPriceField = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO'].includes(id);
                 if(el && !(perfil === 'vendedor' && isPriceField)) {
-                    if(el.type === 'checkbox') el.checked = dados.inputs[id];
-                    else el.value = dados.inputs[id];
+                    if(el.type === 'checkbox') el.checked = dados.inputs[id]; else el.value = dados.inputs[id];
                 }
             }
             atualizarTabela();
             if(pixelsPorMetro > 0) {
-                document.getElementById('btnMedir').disabled = false;
-                document.getElementById('btnMedir').style.borderColor = '#ff6b00';
-                document.getElementById('btnMedir').style.color = '#ff6b00';
+                document.getElementById('btnMedir').disabled = false; document.getElementById('btnMedir').style.borderColor = '#ff6b00'; document.getElementById('btnMedir').style.color = '#ff6b00';
             }
         }
-        const savedImage = localStorage.getItem('blocokImage');
-        if(savedImage) imagemPlanta.src = savedImage;
+        const savedImage = localStorage.getItem('blocokImage'); if(savedImage) imagemPlanta.src = savedImage;
     } catch (erro) { localStorage.removeItem('blocokData'); paredesMedidas = []; }
 }
 
 document.getElementById('btnSalvarProjeto').onclick = async () => {
-    if(!db) return alert("Sua conexão com a Nuvem falhou. Recarregue a página.");
+    if(!db) return alert("Conexão falhou.");
     let nome = document.getElementById('nomeProjetoAtivo').value.trim();
-    if(!nome) return alert("Digite um nome para a obra no painel Gerenciador antes de salvar.");
-    
-    let btn = document.getElementById('btnSalvarProjeto');
-    btn.innerText = "⏳ Salvando..."; btn.disabled = true;
-
+    if(!nome) return alert("Digite um nome.");
+    let btn = document.getElementById('btnSalvarProjeto'); btn.innerText = "⏳..."; btn.disabled = true;
     salvarEstadoLocal(); 
-    const currentData = JSON.parse(localStorage.getItem('blocokData'));
-    const currentImage = localStorage.getItem('blocokImage');
+    const currentData = JSON.parse(localStorage.getItem('blocokData')); const currentImage = localStorage.getItem('blocokImage');
     if (currentImage) currentData.imagem = currentImage;
-
-    try {
-        await db.collection("obras").doc(nome).set(currentData);
-        alert(`Obra '${nome}' enviada para a Nuvem com sucesso!`);
-        atualizarSelectProjetosNuvem();
-    } catch (error) {
-        alert("Erro ao salvar na nuvem. Verifique sua conexão.");
-    } finally {
-        btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false;
-    }
+    try { await db.collection("obras").doc(nome).set(currentData); alert(`Salvo!`); atualizarSelectProjetosNuvem(); } 
+    catch (error) { alert("Erro ao salvar."); } finally { btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false; }
 };
 
 document.getElementById('btnCarregarProjeto').onclick = async () => {
-    if(!db) return alert("Conexão com a Nuvem falhou.");
-    let nome = document.getElementById('selectProjetos').value;
-    if(!nome) return alert("Selecione uma obra na lista para abrir.");
-    
-    if(confirm("Isso vai substituir a Área de Trabalho atual com os dados da nuvem. Deseja continuar?")) {
-        let btn = document.getElementById('btnCarregarProjeto');
-        btn.innerText = "⏳ Baixando...";
+    if(!db) return; let nome = document.getElementById('selectProjetos').value; if(!nome) return alert("Selecione.");
+    if(confirm("Substituir área atual?")) {
+        let btn = document.getElementById('btnCarregarProjeto'); btn.innerText = "⏳...";
         try {
             const docRef = await db.collection("obras").doc(nome).get();
             if (docRef.exists) {
                 let dados = docRef.data();
-                if (dados.imagem) {
-                    localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem;
-                } else { localStorage.removeItem('blocokImage'); }
-                localStorage.setItem('blocokData', JSON.stringify(dados));
-                location.reload(); 
-            } else { alert("Obra não encontrada."); }
-        } catch(error) { alert("Erro ao baixar."); } finally { btn.innerText = "📂 Abrir"; }
+                if (dados.imagem) { localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem; } else { localStorage.removeItem('blocokImage'); }
+                localStorage.setItem('blocokData', JSON.stringify(dados)); location.reload(); 
+            } else { alert("Não encontrada."); }
+        } catch(error) { alert("Erro."); } finally { btn.innerText = "📂 Abrir"; }
     }
 };
 
 document.getElementById('btnExcluirProjeto').onclick = async () => {
-    if(!db) return;
-    let nome = document.getElementById('selectProjetos').value;
-    if(!nome) return alert("Selecione um projeto na lista para excluir.");
-    if(confirm(`Tem certeza que deseja APAGAR DEFINITIVAMENTE a obra '${nome}' do Servidor Oficial?`)) {
-        try { await db.collection("obras").doc(nome).delete(); alert("Obra excluída da Nuvem."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro ao excluir."); }
-    }
+    if(!db) return; let nome = document.getElementById('selectProjetos').value; if(!nome) return alert("Selecione.");
+    if(confirm(`APAGAR '${nome}'?`)) { try { await db.collection("obras").doc(nome).delete(); alert("Excluída."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } }
 };
 
 document.getElementById('btnLimpar').onclick = () => {
-    if(confirm("ATENÇÃO: Isso vai apagar a Área de Trabalho. Continuar?")) {
-        localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage');
-        location.reload(); 
-    }
+    if(confirm("Apagar Área de Trabalho?")) { localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage'); location.reload(); }
 };
 
 document.querySelectorAll('.save-state').forEach(input => { input.addEventListener('change', salvarEstadoLocal); input.addEventListener('input', salvarEstadoLocal); });
@@ -243,105 +264,61 @@ chkComparativo.addEventListener('change', () => { painelComparativo.style.displa
 // 🛠️ LEVANTAMENTO E CALCULADORA
 // ==========================================
 
-document.getElementById('uploadPlanta').onchange = (e) => {
-    const reader = new FileReader(); reader.onload = (ev) => { imagemPlanta.src = ev.target.result; salvarEstadoLocal(); }
-    reader.readAsDataURL(e.target.files[0]);
-};
-
-imagemPlanta.onload = () => {
-    canvas.width = imagemPlanta.width; canvas.height = imagemPlanta.height; ctx.drawImage(imagemPlanta, 0, 0);
-    document.getElementById('btnCalibrar').disabled = false; document.getElementById('btnCalibrar').style.borderColor = '#00f0ff'; document.getElementById('btnCalibrar').style.color = '#00f0ff';
-    statusBar.innerText = "Planta pronta.";
-};
-
+document.getElementById('uploadPlanta').onchange = (e) => { const reader = new FileReader(); reader.onload = (ev) => { imagemPlanta.src = ev.target.result; salvarEstadoLocal(); }; reader.readAsDataURL(e.target.files[0]); };
+imagemPlanta.onload = () => { canvas.width = imagemPlanta.width; canvas.height = imagemPlanta.height; ctx.drawImage(imagemPlanta, 0, 0); document.getElementById('btnCalibrar').disabled = false; document.getElementById('btnCalibrar').style.borderColor = '#00f0ff'; document.getElementById('btnCalibrar').style.color = '#00f0ff'; statusBar.innerText = "Planta pronta."; };
 document.getElementById('btnCalibrar').onclick = () => { estadoAtual = 'calibrando_p1'; statusBar.innerText = "Clique no PONTO 1."; };
-
-document.getElementById('btnMedir').onclick = () => {
-    if(pixelsPorMetro === 0) return alert("Calibre a escala primeiro!");
-    estadoAtual = 'medindo_p1'; statusBar.innerText = "Clique no INÍCIO da parede.";
-};
+document.getElementById('btnMedir').onclick = () => { if(pixelsPorMetro === 0) return alert("Calibre!"); estadoAtual = 'medindo_p1'; statusBar.innerText = "Clique INÍCIO."; };
 
 canvas.onclick = (e) => {
     const x = e.offsetX; const y = e.offsetY;
-    if (estadoAtual === 'calibrando_p1') {
-        ponto1 = {x, y}; estadoAtual = 'calibrando_p2';
-        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill();
-    } else if (estadoAtual === 'calibrando_p2') {
-        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill();
-        ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#00f0ff'; ctx.stroke();
-        let real = prompt("Quantos METROS REAIS tem essa linha? (Ex: 0.80)");
-        if(real && !isNaN(real.replace(',','.'))) {
-            pixelsPorMetro = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / parseFloat(real.replace(',','.'));
-            document.getElementById('btnMedir').disabled = false; document.getElementById('btnMedir').style.borderColor = '#ff6b00'; document.getElementById('btnMedir').style.color = '#ff6b00';
-            estadoAtual = 'ocioso'; statusBar.innerText = "Escala pronta."; salvarEstadoLocal();
-        }
-    } else if (estadoAtual === 'medindo_p1') {
-        ponto1 = {x, y}; estadoAtual = 'medindo_p2';
-        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill();
-    } else if (estadoAtual === 'medindo_p2') {
-        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill();
-        ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#ff6b00'; ctx.lineWidth=3; ctx.stroke();
-        let m = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / pixelsPorMetro;
-        adicionarParede(m, document.getElementById('espessuraCorrente').value);
-        estadoAtual = 'ocioso'; statusBar.innerText = "Parede gravada.";
+    if (estadoAtual === 'calibrando_p1') { ponto1 = {x, y}; estadoAtual = 'calibrando_p2'; ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill(); } 
+    else if (estadoAtual === 'calibrando_p2') {
+        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill(); ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#00f0ff'; ctx.stroke();
+        let real = prompt("METROS REAIS? (Ex: 0.80)");
+        if(real && !isNaN(real.replace(',','.'))) { pixelsPorMetro = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / parseFloat(real.replace(',','.')); document.getElementById('btnMedir').disabled = false; document.getElementById('btnMedir').style.borderColor = '#ff6b00'; document.getElementById('btnMedir').style.color = '#ff6b00'; estadoAtual = 'ocioso'; statusBar.innerText = "Escala pronta."; salvarEstadoLocal(); }
+    } 
+    else if (estadoAtual === 'medindo_p1') { ponto1 = {x, y}; estadoAtual = 'medindo_p2'; ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill(); } 
+    else if (estadoAtual === 'medindo_p2') {
+        ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill(); ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#ff6b00'; ctx.lineWidth=3; ctx.stroke();
+        let m = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / pixelsPorMetro; adicionarParede(m, document.getElementById('espessuraCorrente').value); estadoAtual = 'ocioso'; statusBar.innerText = "Parede gravada.";
     }
 };
 
-document.getElementById('btnAdicionarManual').onclick = () => {
-    let input = document.getElementById('comprimentoManual'); let v = parseFloat(input.value.replace(',','.'));
-    if(v > 0) adicionarParede(v, document.getElementById('espessuraCorrente').value); input.value = '';
-};
-
+document.getElementById('btnAdicionarManual').onclick = () => { let input = document.getElementById('comprimentoManual'); let v = parseFloat(input.value.replace(',','.')); if(v > 0) adicionarParede(v, document.getElementById('espessuraCorrente').value); input.value = ''; };
 document.getElementById('btnAdicionarOitao').onclick = () => {
-    let b = parseFloat(document.getElementById('baseOitao').value.replace(',','.')); let a = parseFloat(document.getElementById('alturaOitao').value.replace(',','.'));
-    let esp = document.getElementById('espessuraCorrente').value;
-    if(b > 0 && a > 0) {
-        paredesMedidas.push({ tipo: 'oitao', comp: b, alturaOitao: a, esp: esp, areaVaos: 0, areaFixa: (b * a) / 2 });
-        atualizarTabela(); salvarEstadoLocal(); document.getElementById('baseOitao').value = ''; document.getElementById('alturaOitao').value = '';
-    } else { alert("Preencha Base e Altura."); }
+    let b = parseFloat(document.getElementById('baseOitao').value.replace(',','.')); let a = parseFloat(document.getElementById('alturaOitao').value.replace(',','.')); let esp = document.getElementById('espessuraCorrente').value;
+    if(b > 0 && a > 0) { paredesMedidas.push({ tipo: 'oitao', comp: b, alturaOitao: a, esp: esp, areaVaos: 0, areaFixa: (b * a) / 2 }); atualizarTabela(); salvarEstadoLocal(); document.getElementById('baseOitao').value = ''; document.getElementById('alturaOitao').value = ''; } else { alert("Preencha Base e Altura."); }
 };
 
 function adicionarParede(comp, esp) { paredesMedidas.push({ tipo: 'parede', comp: comp, esp: esp, areaVaos: 0, areaFixa: 0 }); atualizarTabela(); salvarEstadoLocal(); }
 function removerP(index) { paredesMedidas.splice(index, 1); atualizarTabela(); salvarEstadoLocal(); }
-window.addVao = function(index) {
-    let l = prompt(`LARGURA do vão (m):`); if (!l || isNaN(l.replace(',','.'))) return;
-    let a = prompt(`ALTURA do vão (m):`); if (!a || isNaN(a.replace(',','.'))) return;
-    paredesMedidas[index].areaVaos += (parseFloat(l.replace(',','.')) * parseFloat(a.replace(',','.')));
-    atualizarTabela(); salvarEstadoLocal();
-};
+window.addVao = function(index) { let l = prompt(`LARGURA vão (m):`); if (!l || isNaN(l.replace(',','.'))) return; let a = prompt(`ALTURA vão (m):`); if (!a || isNaN(a.replace(',','.'))) return; paredesMedidas[index].areaVaos += (parseFloat(l.replace(',','.')) * parseFloat(a.replace(',','.'))); atualizarTabela(); salvarEstadoLocal(); };
 
 function atualizarTabela() {
-    const t = document.getElementById('corpoTabela'); if(!t) return;
-    t.innerHTML = "";
+    const t = document.getElementById('corpoTabela'); if(!t) return; t.innerHTML = "";
     paredesMedidas.forEach((p, i) => {
-        let txtVao = p.areaVaos > 0 ? `<span style="color:#ef4444;font-weight:bold;">-${p.areaVaos.toFixed(2)}</span>` : "0.00";
-        let desc = p.tipo === 'oitao' ? `B:${p.comp.toFixed(2)} x A:${p.alturaOitao.toFixed(2)}` : `${p.comp.toFixed(2)}m`;
-        let badgeTipo = p.tipo === 'oitao' ? `<span style="color:#a855f7; font-weight:bold;">🔺 Oitão P${i+1}</span>` : `Parede P${i+1}`;
-        t.innerHTML += `<tr><td>${badgeTipo}</td><td>${desc}</td><td><span class="badge-esp">${p.esp}cm</span></td><td>${txtVao}</td>
-            <td class="acoes-tabela"><button type="button" class="btn-add-vao" onclick="addVao(${i})">+ Vão</button><button type="button" class="btn-remover" onclick="removerP(${i})">X</button></td></tr>`;
+        let txtVao = p.areaVaos > 0 ? `<span style="color:#ef4444;font-weight:bold;">-${p.areaVaos.toFixed(2)}</span>` : "0.00"; let desc = p.tipo === 'oitao' ? `B:${p.comp.toFixed(2)} x A:${p.alturaOitao.toFixed(2)}` : `${p.comp.toFixed(2)}m`; let badgeTipo = p.tipo === 'oitao' ? `<span style="color:#a855f7; font-weight:bold;">🔺 Oitão P${i+1}</span>` : `Parede P${i+1}`;
+        t.innerHTML += `<tr><td>${badgeTipo}</td><td>${desc}</td><td><span class="badge-esp">${p.esp}cm</span></td><td>${txtVao}</td><td class="acoes-tabela"><button type="button" class="btn-add-vao" onclick="addVao(${i})">+ Vão</button><button type="button" class="btn-remover" onclick="removerP(${i})">X</button></td></tr>`;
     });
 }
 
 document.getElementById('btnExportarExcel').onclick = () => {
-    if(paredesMedidas.length === 0) return alert("Lista vazia.");
-    let csv = "Item;Tipo;Espessura(cm);Comp_Base(m);Altura_Oitao(m);Area_Vaos(m2)\n";
+    if(paredesMedidas.length === 0) return alert("Lista vazia."); let csv = "Item;Tipo;Espessura(cm);Comp_Base(m);Altura_Oitao(m);Area_Vaos(m2)\n";
     paredesMedidas.forEach((p, i) => { csv += `${i+1};${p.tipo ? p.tipo.toUpperCase() : 'PAREDE'};${p.esp};${p.comp.toFixed(2)};${p.tipo === 'oitao' ? p.alturaOitao.toFixed(2) : "-"};${p.areaVaos.toFixed(2)}\n`; });
-    let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `BLOCOK_${new Date().getTime()}.csv`; link.click();
+    let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `BLOCOK_${new Date().getTime()}.csv`; link.click();
 };
 
 // ==========================================
-// 🚀 INICIALIZAÇÃO, PDF E WHATSAPP
+// 🚀 GERAÇÃO DO PDF
 // ==========================================
 
-verificarSessao(); // Isso verifica o login quando a página abre
+verificarSessao();
 
 document.getElementById('formCalculadora').onsubmit = (e) => {
-    e.preventDefault();
-    salvarEstadoLocal(); 
+    e.preventDefault(); salvarEstadoLocal(); 
     if(paredesMedidas.length === 0) return alert("Lista vazia.");
 
-    let nome = document.getElementById('nomeProjetoAtivo').value || document.getElementById('nomeProjeto')?.value || "Cliente";
+    let nome = document.getElementById('nomeProjetoAtivo').value || document.getElementById('whatsappCliente').value || "Cliente";
     let telefone = document.getElementById('whatsappCliente').value.replace(/\D/g, '');
     let h = parseFloat(document.getElementById('alturaGlobal').value);
     let pag = document.getElementById('formaPagamento').value;
@@ -432,9 +409,9 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     document.getElementById('sendWhatsApp').onclick = () => {
         if(!telefone) return alert("Preencha o WhatsApp do cliente.");
-        let texto = `*PROPOSTA TÉCNICA - BLOCOK* 🧱\n\nOlá, *${nome.toUpperCase()}*! Segue o resumo do seu orçamento:\n\n📏 *Área Total Construída:* ${totalAreaLiquida.toFixed(2)} m²\n💰 *INVESTIMENTO TOTAL:* R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
-        if(economiaReais > 0) texto += `✅ *Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})} em relação à alvenaria convencional!\n`;
-        texto += `\nEstou enviando o *PDF detalhado* a seguir. Qualquer dúvida, estou à disposição!`;
+        let texto = `*PROPOSTA TÉCNICA - BLOCOK* 🧱\n\nOlá, *${nome.toUpperCase()}*! Segue o resumo:\n\n📏 *Área Total:* ${totalAreaLiquida.toFixed(2)} m²\n💰 *TOTAL PRODUTOS:* R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
+        if(economiaReais > 0) texto += `✅ *Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
+        texto += `\nEstou enviando o *PDF detalhado* a seguir!`;
         window.open(`https://api.whatsapp.com/send?phone=55${telefone}&text=${encodeURIComponent(texto)}`, '_blank');
     };
 };

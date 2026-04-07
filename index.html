@@ -73,6 +73,44 @@
                     </div>
                 </div>
 
+                <!-- NOVO: PAINEL DO ADMIN (Preços Globais) -->
+                <div id="painelAdmin" class="controle-insercao" style="display: none; border-left-color: #f59e0b; background: #1a150b;">
+                    <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #f59e0b;">⚙️ PAINEL DO DONO (Tabela de Preços)</label>
+                    <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">A atualização dos valores altera o sistema de toda a equipe instantaneamente.</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div style="background: #0b0f19; padding: 10px; border-radius: 6px; border: 1px solid #334155;">
+                            <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px;">Bloco 10cm (À Vista / A Prazo)</label>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="p10v" class="input-tech" step="0.01" style="padding: 8px;">
+                                <input type="number" id="p10p" class="input-tech" step="0.01" style="padding: 8px;">
+                            </div>
+                        </div>
+                        <div style="background: #0b0f19; padding: 10px; border-radius: 6px; border: 1px solid #334155;">
+                            <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px;">Bloco 13cm (À Vista / A Prazo)</label>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="p13v" class="input-tech" step="0.01" style="padding: 8px;">
+                                <input type="number" id="p13p" class="input-tech" step="0.01" style="padding: 8px;">
+                            </div>
+                        </div>
+                        <div style="background: #0b0f19; padding: 10px; border-radius: 6px; border: 1px solid #334155;">
+                            <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px;">Bloco 15cm (À Vista / A Prazo)</label>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="p15v" class="input-tech" step="0.01" style="padding: 8px;">
+                                <input type="number" id="p15p" class="input-tech" step="0.01" style="padding: 8px;">
+                            </div>
+                        </div>
+                        <div style="background: #0b0f19; padding: 10px; border-radius: 6px; border: 1px solid #334155;">
+                            <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px;">Bloco 20cm (À Vista / A Prazo)</label>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="number" id="p20v" class="input-tech" step="0.01" style="padding: 8px;">
+                                <input type="number" id="p20p" class="input-tech" step="0.01" style="padding: 8px;">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="btnSalvarPrecosGlobais" class="btn-tech-primary" style="width: 100%; margin-top: 15px; background: #f59e0b; color: #1a150b;">💾 ATUALIZAR TABELA DE PREÇOS NO SERVIDOR</button>
+                </div>
+
                 <div class="controle-insercao">
                     <label class="titulo-secao">1. CONFIGURAÇÃO DE PAREDES E OITÕES</label>
                     <div class="form-group" style="margin-top:10px;">
@@ -174,7 +212,6 @@
         </div>
     </div>
 
-    <!-- O SEGREDO ESTÁ AQUI: Estas ferramentas do Google DEVEM estar no final do HTML -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="script.js"></script>
