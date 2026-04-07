@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLOCOK System | Acesso Restrito</title>
-    <!-- Quebrando o cache com v=5 -->
-    <link rel="stylesheet" href="style.css?v=5">
+    <!-- Quebrando o cache com v=6 -->
+    <link rel="stylesheet" href="style.css?v=6">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -107,9 +107,15 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- NOVO: LIMITE DE DESCONTO -->
+                    <div style="background: #0b0f19; padding: 10px; border-radius: 6px; border: 1px solid #ef4444; margin-top: 15px;">
+                        <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px;">Limite Máximo de Desconto Vendedor (%)</label>
+                        <input type="number" id="descontoMax" class="input-tech" step="0.1" style="padding: 8px; width: 100%; border-color: #ef4444;" value="5">
+                    </div>
+
                     <button type="button" id="btnSalvarPrecosGlobais" class="btn-tech-primary" style="width: 100%; margin-top: 15px; background: #f59e0b; color: #1a150b;">💾 ATUALIZAR PREÇOS E CONFIGURAÇÕES DA EMPRESA</button>
 
-                    <!-- NOVO: GESTÃO DE VENDEDORES -->
                     <div style="border-top: 1px dashed #334155; margin-top: 25px; padding-top: 15px;">
                         <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #3b82f6;">👥 GESTÃO DE VENDEDORES</label>
                         <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Crie logins para sua equipe. Eles terão acesso bloqueado a estas configurações.</p>
@@ -125,9 +131,7 @@
                                 <thead>
                                     <tr><th>Login do Vendedor</th><th>Senha</th><th>Ação</th></tr>
                                 </thead>
-                                <tbody id="listaVendedores">
-                                    <!-- Povoado pelo JS -->
-                                </tbody>
+                                <tbody id="listaVendedores"></tbody>
                             </table>
                         </div>
                     </div>
@@ -223,6 +227,7 @@
 
                 <form id="formCalculadora" class="controle-insercao">
                     <label class="titulo-secao">DADOS DO PROJETO E CONTATO</label>
+                    
                     <div class="form-group-inline" style="margin-top: 10px;">
                         <div style="flex: 1; padding-right: 5px;">
                             <label style="display:block; margin-bottom:5px; font-size: 12px;">WhatsApp do Cliente:</label>
@@ -233,6 +238,7 @@
                             <input type="number" id="alturaGlobal" class="input-tech save-state" step="0.01" value="2.80" required>
                         </div>
                     </div>
+                    
                     <div class="form-group" style="margin-top: 10px;">
                         <label style="display:block; margin-bottom:5px; font-size: 12px;">Condição de Pagamento:</label>
                         <select id="formaPagamento" class="input-tech save-state">
@@ -240,6 +246,19 @@
                             <option value="prazo">A Prazo</option>
                         </select>
                     </div>
+
+                    <!-- NOVO: MÓDULO LOGÍSTICA E NEGOCIAÇÃO -->
+                    <div class="form-group-inline" style="margin-top: 10px; border-top: 1px solid #334155; padding-top: 15px;">
+                        <div style="flex: 1; padding-right: 5px;">
+                            <label style="display:block; margin-bottom:5px; font-size: 12px; color: #10b981;">Frete / Entrega (R$):</label>
+                            <input type="number" id="valorFrete" class="input-tech save-state" step="0.01" placeholder="0.00">
+                        </div>
+                        <div style="flex: 1; padding-left: 5px;">
+                            <label style="display:block; margin-bottom:5px; font-size: 12px; color: #ef4444;">Desconto Comercial (%):</label>
+                            <input type="number" id="valorDesconto" class="input-tech save-state" step="0.1" placeholder="0.0">
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn-tech-run" style="margin-top: 15px;">🚀 GERAR PROPOSTA</button>
                 </form>
 
