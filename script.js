@@ -1,9 +1,11 @@
+// ==========================================
+// 🔒 VARIÁVEIS GLOBAIS DE SISTEMA
+// ==========================================
 let precosBlocok = {
     "10": { avista: 0, prazo: 0 }, "13": { avista: 0, prazo: 0 }, "15": { avista: 0, prazo: 0 }, "20": { avista: 0, prazo: 0 }
 };
 
-let configVisualNuvem = { logo: null, tamanho: 70, cor: "#ff6b00" }; // Padrões iniciais
-
+let configVisualNuvem = { logo: null, tamanho: 70, cor: "#ff6b00" }; 
 let listaUsuariosGlobais = {}; 
 
 let paredesMedidas = []; 
@@ -51,7 +53,6 @@ async function carregarPrecosDaNuvem() {
             };
             await db.collection("configuracoes").doc("precosGlobais").set(precosBlocok);
         }
-        // Povoa campos normais
         document.getElementById('p10v').value = precosBlocok["10"].avista; document.getElementById('p10p').value = precosBlocok["10"].prazo;
         document.getElementById('p13v').value = precosBlocok["13"].avista; document.getElementById('p13p').value = precosBlocok["13"].prazo;
         document.getElementById('p15v').value = precosBlocok["15"].avista; document.getElementById('p15p').value = precosBlocok["15"].prazo;
@@ -65,7 +66,7 @@ async function carregarPrecosDaNuvem() {
 }
 
 document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
-    let btn = document.getElementById('btnSalvarPrecosGlobais'); btn.innerText = "⏳..."; btn.disabled = true;
+    let btn = document.getElementById('btnSalvarPrecosGlobais'); btn.innerText = "⏳ ENVIANDO..."; btn.disabled = true;
     const novosPrecos = {
         "10": { avista: parseFloat(document.getElementById('p10v').value || 0), prazo: parseFloat(document.getElementById('p10p').value || 0) },
         "13": { avista: parseFloat(document.getElementById('p13v').value || 0), prazo: parseFloat(document.getElementById('p13p').value || 0) },
@@ -82,67 +83,72 @@ document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
 };
 
 // ==========================================
-// 🎨 NOVO: GESTÃO DE IDENTIDADE VISUAL (NUVEM)
+// 🎨 GESTÃO DE IDENTIDADE VISUAL (COM COMPRESSÃO)
 // ==========================================
-
 async function carregarIdentidadeVisualDaNuvem() {
     if (!db) return;
     try {
         const docRef = await db.collection("configuracoes").doc("identidadeVisual").get();
-        if (docRef.exists) {
-            configVisualNuvem = docRef.data();
-        } else {
-            configVisualNuvem = { logo: null, tamanho: 70, cor: "#ff6b00" }; // Padrão
+        if (docRef.exists) { configVisualNuvem = docRef.data(); } 
+        else {
+            configVisualNuvem = { logo: null, tamanho: 70, cor: "#ff6b00" }; 
             await db.collection("configuracoes").doc("identidadeVisual").set(configVisualNuvem);
         }
         
-        // Povoa o painel de configuração (se Admin)
         if(sessionStorage.getItem('blocok_perfil') === 'admin') {
             document.getElementById('sliderTamanhoLogo').value = configVisualNuvem.tamanho;
             document.getElementById('inputCorDestaque').value = configVisualNuvem.cor;
             document.getElementById('valorCorDestaqueHex').value = configVisualNuvem.cor.toUpperCase();
             
             const p = document.getElementById('previsualizacaoLogo');
-            if(configVisualNuvem.logo) {
-                p.innerHTML = `<img src="${configVisualNuvem.logo}" style="max-height: 100%; max-width: 100%;">`;
-            } else { p.innerHTML = '<span>Nenhuma Logo Salva</span>'; }
+            if(configVisualNuvem.logo) { p.innerHTML = `<img src="${configVisualNuvem.logo}" style="max-height: 100%; max-width: 100%;">`; } 
+            else { p.innerHTML = '<span>Nenhuma Logo Salva</span>'; }
         }
-        
-        console.log("Identidade visual sincronizada.");
     } catch (e) { console.error("Erro Visuais:", e); }
 }
 
-// Sincroniza o texto HEX com o seletor de cor
 document.getElementById('inputCorDestaque').addEventListener('input', (e) => {
     document.getElementById('valorCorDestaqueHex').value = e.target.value.toUpperCase();
 });
 
-// Upload da Logo da Empresa
+// Compressão automática de Imagem
 document.getElementById('uploadLogoEmpresa').onchange = (e) => {
     const file = e.target.files[0]; if(!file) return;
-    // Verificação simples de tamanho (ex: max 500kb)
-    if(file.size > 512000) return alert("❌ Imagem muito pesada! Use PNG/JPEG com menos de 500KB.");
-
     const reader = new FileReader();
     reader.onload = (ev) => {
-        configVisualNuvem.logo = ev.target.result; // Salva a Base64 no objeto local
-        document.getElementById('previsualizacaoLogo').innerHTML = `<img src="${configVisualNuvem.logo}" style="max-height: 100%; max-width: 100%;">`;
+        const img = new Image();
+        img.onload = () => {
+            const max_width = 400;
+            let scale = 1;
+            if (img.width > max_width) { scale = max_width / img.width; }
+            
+            const canvasBox = document.createElement('canvas');
+            canvasBox.width = img.width * scale;
+            canvasBox.height = img.height * scale;
+            const ctxBox = canvasBox.getContext('2d');
+            ctxBox.drawImage(img, 0, 0, canvasBox.width, canvasBox.height);
+
+            configVisualNuvem.logo = canvasBox.toDataURL('image/jpeg', 0.8);
+            document.getElementById('previsualizacaoLogo').innerHTML = `<img src="${configVisualNuvem.logo}" style="max-height: 100%; max-width: 100%;">`;
+        };
+        img.src = ev.target.result;
     };
     reader.readAsDataURL(file);
 };
 
 document.getElementById('btnSalvarVisuais').onclick = async () => {
-    let btn = document.getElementById('btnSalvarVisuais'); btn.innerText = "⏳..."; btn.disabled = true; btn.style.backgroundColor = "#ccc";
+    if(!db) return alert("❌ Sem conexão com a nuvem!");
+    let btn = document.getElementById('btnSalvarVisuais'); 
+    btn.innerText = "⏳ ENVIANDO PARA A NUVEM..."; btn.disabled = true; btn.style.backgroundColor = "#ccc";
     
-    // Atualiza os dados finais baseados nos inputs
     configVisualNuvem.tamanho = document.getElementById('sliderTamanhoLogo').value;
     configVisualNuvem.cor = document.getElementById('inputCorDestaque').value;
 
     try {
         await db.collection("configuracoes").doc("identidadeVisual").set(configVisualNuvem);
-        alert("🎉 Identidade Visual salva com sucesso na Nuvem! Toda a equipe já está usando a nova logo e cor.");
+        alert("🎉 Identidade Visual salva com sucesso! A imagem foi comprimida e enviada.");
     } catch (error) { 
-        alert("Erro ao salvar visuais. Verifique a conexão."); 
+        console.error(error); alert("❌ Erro ao salvar! Verifique a conexão."); 
     } finally {
         btn.innerText = "💾 SALVAR CONFIGURAÇÕES VISUAIS NA NUVEM"; btn.disabled = false; btn.style.backgroundColor = "#1e3a8a";
     }
@@ -179,7 +185,7 @@ window.removerVendedor = async function(user) {
 };
 
 // ==========================================
-// 📁 SESSÃO E BANCO DE DADOS
+// 📁 MOTOR DE LOGIN E SESSÃO
 // ==========================================
 function aplicarRestricoes(perfil) {
     if (perfil === 'admin') { document.getElementById('painelAdmin').style.display = 'block'; renderizarPainelUsuarios(); } 
@@ -197,7 +203,7 @@ function verificarSessao() {
 document.getElementById('btnLogin').onclick = async () => {
     const user = document.getElementById('userInput').value.trim().toLowerCase(); const pass = document.getElementById('passInput').value;
     const erro = document.getElementById('loginError'); let btn = document.getElementById('btnLogin');
-    if(!user || !pass) return; btn.innerText = "⏳..."; btn.disabled = true;
+    if(!user || !pass) return; btn.innerText = "⏳ CONECTANDO..."; btn.disabled = true;
     try {
         let docRef = null; if(db) docRef = await db.collection("configuracoes").doc("usuarios").get();
         if (docRef && docRef.exists) { listaUsuariosGlobais = docRef.data(); } 
@@ -208,6 +214,9 @@ document.getElementById('btnLogin').onclick = async () => {
 };
 document.getElementById('btnLogout').onclick = () => { sessionStorage.removeItem('blocok_logado'); sessionStorage.removeItem('blocok_perfil'); sessionStorage.removeItem('blocok_usuario'); location.reload(); };
 
+// ==========================================
+// ☁️ SALVAMENTO NA NUVEM (COM CERCADINHO)
+// ==========================================
 async function atualizarSelectProjetosNuvem() {
     const select = document.getElementById('selectProjetos'); if(!select || !db) return; select.innerHTML = '<option value="">⏳...</option>';
     try { 
@@ -242,23 +251,24 @@ function carregarEstadoLocal() {
 }
 
 document.getElementById('btnSalvarProjeto').onclick = async () => {
-    if(!db) return; let nome = document.getElementById('nomeProjetoAtivo').value.trim(); if(!nome) return alert("Digite um nome.");
+    if(!db) return; let nome = document.getElementById('nomeProjetoAtivo').value.trim(); if(!nome) return alert("Digite um nome para a obra.");
     let btn = document.getElementById('btnSalvarProjeto'); btn.innerText = "⏳..."; btn.disabled = true; salvarEstadoLocal(); 
     const currentData = JSON.parse(localStorage.getItem('blocokData')); const currentImage = localStorage.getItem('blocokImage'); if (currentImage) currentData.imagem = currentImage;
     currentData.dono = sessionStorage.getItem('blocok_usuario') || 'admin';
-    try { await db.collection("obras").doc(nome).set(currentData); alert(`Salvo!`); atualizarSelectProjetosNuvem(); } catch (error) { alert("Erro ao salvar."); } finally { btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false; }
+    try { await db.collection("obras").doc(nome).set(currentData); alert(`Obra salva!`); atualizarSelectProjetosNuvem(); } catch (error) { alert("Erro ao salvar na nuvem."); } finally { btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false; }
 };
 
 document.getElementById('btnCarregarProjeto').onclick = async () => {
-    if(!db) return; let selectVal = document.getElementById('selectProjetos').value; if(!selectVal) return alert("Selecione.");
+    if(!db) return; let selectVal = document.getElementById('selectProjetos').value; if(!selectVal) return alert("Selecione uma obra.");
     let nomeReal = selectVal.split(' (')[0];
-    if(confirm("Substituir área atual?")) {
+    if(confirm("Substituir área atual pelos dados da nuvem?")) {
         let btn = document.getElementById('btnCarregarProjeto'); btn.innerText = "⏳...";
-        try { const docRef = await db.collection("obras").doc(nomeReal).get(); if (docRef.exists) { let dados = docRef.data(); if (dados.imagem) { localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem; } else localStorage.removeItem('blocokImage'); localStorage.setItem('blocokData', JSON.stringify(dados)); location.reload(); } else alert("Não encontrada."); } catch(error) { alert("Erro."); } finally { btn.innerText = "📂 Abrir"; }
+        try { const docRef = await db.collection("obras").doc(nomeReal).get(); if (docRef.exists) { let dados = docRef.data(); if (dados.imagem) { localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem; } else localStorage.removeItem('blocokImage'); localStorage.setItem('blocokData', JSON.stringify(dados)); location.reload(); } else alert("Obra não encontrada."); } catch(error) { alert("Erro."); } finally { btn.innerText = "📂 Abrir"; }
     }
 };
-document.getElementById('btnExcluirProjeto').onclick = async () => { if(!db) return; let selectVal = document.getElementById('selectProjetos').value; if(!selectVal) return alert("Selecione."); let nomeReal = selectVal.split(' (')[0]; if(confirm(`APAGAR '${nomeReal}'?`)) { try { await db.collection("obras").doc(nomeReal).delete(); alert("Excluída."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } } };
-document.getElementById('btnLimpar').onclick = () => { if(confirm("Apagar Área?")) { localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage'); location.reload(); } };
+document.getElementById('btnExcluirProjeto').onclick = async () => { if(!db) return; let selectVal = document.getElementById('selectProjetos').value; if(!selectVal) return alert("Selecione."); let nomeReal = selectVal.split(' (')[0]; if(confirm(`APAGAR '${nomeReal}' DA NUVEM?`)) { try { await db.collection("obras").doc(nomeReal).delete(); alert("Excluída com sucesso."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } } };
+document.getElementById('btnLimpar').onclick = () => { if(confirm("Apagar Área de Trabalho?")) { localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage'); location.reload(); } };
+
 document.querySelectorAll('.save-state').forEach(i => { i.addEventListener('change', salvarEstadoLocal); i.addEventListener('input', salvarEstadoLocal); });
 const chkInsumos = document.getElementById('chkInsumos'); const painelInsumos = document.getElementById('painelInsumos'); chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstadoLocal(); });
 const chkComparativo = document.getElementById('chkComparativo'); const painelComparativo = document.getElementById('painelComparativo'); chkComparativo.addEventListener('change', () => { painelComparativo.style.display = chkComparativo.checked ? 'block' : 'none'; salvarEstadoLocal(); });
@@ -270,11 +280,11 @@ const chkCronograma = document.getElementById('chkCronograma'); const painelCron
 document.getElementById('uploadPlanta').onchange = (e) => { const r = new FileReader(); r.onload = (ev) => { imagemPlanta.src = ev.target.result; salvarEstadoLocal(); }; r.readAsDataURL(e.target.files[0]); };
 imagemPlanta.onload = () => { canvas.width = imagemPlanta.width; canvas.height = imagemPlanta.height; ctx.drawImage(imagemPlanta, 0, 0); document.getElementById('btnCalibrar').disabled = false; document.getElementById('btnCalibrar').style.borderColor = '#00f0ff'; document.getElementById('btnCalibrar').style.color = '#00f0ff'; statusBar.innerText = "Planta pronta."; };
 document.getElementById('btnCalibrar').onclick = () => { estadoAtual = 'calibrando_p1'; statusBar.innerText = "Clique no PONTO 1."; };
-document.getElementById('btnMedir').onclick = () => { if(pixelsPorMetro === 0) return alert("Calibre!"); estadoAtual = 'medindo_p1'; statusBar.innerText = "Clique INÍCIO."; };
+document.getElementById('btnMedir').onclick = () => { if(pixelsPorMetro === 0) return alert("Calibre a escala primeiro!"); estadoAtual = 'medindo_p1'; statusBar.innerText = "Clique INÍCIO."; };
 canvas.onclick = (e) => {
     const x = e.offsetX; const y = e.offsetY;
     if (estadoAtual === 'calibrando_p1') { ponto1 = {x, y}; estadoAtual = 'calibrando_p2'; ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill(); } 
-    else if (estadoAtual === 'calibrando_p2') { ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill(); ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#00f0ff'; ctx.stroke(); let r = prompt("METROS REAIS? (Ex: 0.80)"); if(r && !isNaN(r.replace(',','.'))) { pixelsPorMetro = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / parseFloat(r.replace(',','.')); document.getElementById('btnMedir').disabled = false; document.getElementById('btnMedir').style.borderColor = '#ff6b00'; document.getElementById('btnMedir').style.color = '#ff6b00'; estadoAtual = 'ocioso'; statusBar.innerText = "Escala pronta."; salvarEstadoLocal(); } } 
+    else if (estadoAtual === 'calibrando_p2') { ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill(); ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#00f0ff'; ctx.stroke(); let r = prompt("Quantos METROS REAIS tem essa linha? (Ex: 0.80)"); if(r && !isNaN(r.replace(',','.'))) { pixelsPorMetro = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / parseFloat(r.replace(',','.')); document.getElementById('btnMedir').disabled = false; document.getElementById('btnMedir').style.borderColor = '#ff6b00'; document.getElementById('btnMedir').style.color = '#ff6b00'; estadoAtual = 'ocioso'; statusBar.innerText = "Escala pronta."; salvarEstadoLocal(); } } 
     else if (estadoAtual === 'medindo_p1') { ponto1 = {x, y}; estadoAtual = 'medindo_p2'; ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill(); } 
     else if (estadoAtual === 'medindo_p2') { ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill(); ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#ff6b00'; ctx.lineWidth=3; ctx.stroke(); let m = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / pixelsPorMetro; adicionarParede(m, document.getElementById('espessuraCorrente').value); estadoAtual = 'ocioso'; statusBar.innerText = "Parede gravada."; }
 };
@@ -282,19 +292,18 @@ document.getElementById('btnAdicionarManual').onclick = () => { let v = parseFlo
 document.getElementById('btnAdicionarOitao').onclick = () => { let b = parseFloat(document.getElementById('baseOitao').value.replace(',','.')); let a = parseFloat(document.getElementById('alturaOitao').value.replace(',','.')); let esp = document.getElementById('espessuraCorrente').value; if(b > 0 && a > 0) { paredesMedidas.push({ tipo: 'oitao', comp: b, alturaOitao: a, esp: esp, areaVaos: 0, areaFixa: (b * a) / 2 }); atualizarTabela(); salvarEstadoLocal(); document.getElementById('baseOitao').value = ''; document.getElementById('alturaOitao').value = ''; } else alert("Preencha Base e Altura."); };
 function adicionarParede(comp, esp) { paredesMedidas.push({ tipo: 'parede', comp: comp, esp: esp, areaVaos: 0, areaFixa: 0 }); atualizarTabela(); salvarEstadoLocal(); }
 function removerP(index) { paredesMedidas.splice(index, 1); atualizarTabela(); salvarEstadoLocal(); }
-window.addVao = function(index) { let l = prompt(`LARGURA vão (m):`); if (!l || isNaN(l.replace(',','.'))) return; let a = prompt(`ALTURA vão (m):`); if (!a || isNaN(a.replace(',','.'))) return; paredesMedidas[index].areaVaos += (parseFloat(l.replace(',','.')) * parseFloat(a.replace(',','.'))); atualizarTabela(); salvarEstadoLocal(); };
+window.addVao = function(index) { let l = prompt(`LARGURA do vão (m):`); if (!l || isNaN(l.replace(',','.'))) return; let a = prompt(`ALTURA do vão (m):`); if (!a || isNaN(a.replace(',','.'))) return; paredesMedidas[index].areaVaos += (parseFloat(l.replace(',','.')) * parseFloat(a.replace(',','.'))); atualizarTabela(); salvarEstadoLocal(); };
 function atualizarTabela() { const t = document.getElementById('corpoTabela'); if(!t) return; t.innerHTML = ""; paredesMedidas.forEach((p, i) => { let txtVao = p.areaVaos > 0 ? `<span style="color:#ef4444;font-weight:bold;">-${p.areaVaos.toFixed(2)}</span>` : "0.00"; let desc = p.tipo === 'oitao' ? `B:${p.comp.toFixed(2)} x A:${p.alturaOitao.toFixed(2)}` : `${p.comp.toFixed(2)}m`; let badgeTipo = p.tipo === 'oitao' ? `<span style="color:#a855f7; font-weight:bold;">🔺 Oitão P${i+1}</span>` : `Parede P${i+1}`; t.innerHTML += `<tr><td>${badgeTipo}</td><td>${desc}</td><td><span class="badge-esp">${p.esp}cm</span></td><td>${txtVao}</td><td class="acoes-tabela"><button type="button" class="btn-add-vao" onclick="addVao(${i})">+ Vão</button><button type="button" class="btn-remover" onclick="removerP(${i})">X</button></td></tr>`; }); }
 document.getElementById('btnExportarExcel').onclick = () => { if(paredesMedidas.length === 0) return alert("Lista vazia."); let csv = "Item;Tipo;Espessura(cm);Comp_Base(m);Altura_Oitao(m);Area_Vaos(m2)\n"; paredesMedidas.forEach((p, i) => { csv += `${i+1};${p.tipo ? p.tipo.toUpperCase() : 'PAREDE'};${p.esp};${p.comp.toFixed(2)};${p.tipo === 'oitao' ? p.alturaOitao.toFixed(2) : "-"};${p.areaVaos.toFixed(2)}\n`; }); let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `BLOCOK_${new Date().getTime()}.csv`; link.click(); };
 
 // ==========================================
-// 🚀 GERAÇÃO DO PDF E ROMANEIO
+// 🚀 GERAÇÃO DO PDF E ROMANEIO (COM IDENTIDADE VISUAL)
 // ==========================================
-
 verificarSessao();
 
 document.getElementById('formCalculadora').onsubmit = (e) => {
     e.preventDefault(); salvarEstadoLocal(); 
-    if(paredesMedidas.length === 0) return alert("Lista vazia. Meça as paredes primeiro.");
+    if(paredesMedidas.length === 0) return alert("Lista de paredes está vazia. Meça as paredes primeiro.");
 
     let frete = parseFloat(document.getElementById('valorFrete').value || 0);
     let descontoPct = parseFloat(document.getElementById('valorDesconto').value || 0);
@@ -327,11 +336,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         totalAreaBruta += areaBrutaParede; totalAreaLiquida += areaLiquidaParede;
     });
 
-    // ==========================================
-    // A MÁGICA DO PDF DINÂMICO: Logo e Cor
-    // ==========================================
-    
-    // Inserção da Logo (se existir) com tamanho ajustado
+    // 🎨 Inserção da Logo (se existir) com tamanho ajustado
     let tagLogoPdf = '';
     if (configVisualNuvem.logo) {
         tagLogoPdf = `<img src="${configVisualNuvem.logo}" style="max-height: 80px; max-width: ${configVisualNuvem.tamanho}%; margin-bottom: 15px; display: block;">`;
@@ -346,8 +351,8 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             ${tagLogoPdf}
 
             <div style="border-bottom: 3px solid ${configVisualNuvem.cor}; padding-bottom: 10px; margin-bottom: 20px;">
-                <h1 style="color: #2c3e50; margin: 0 0 5px 0;">PROPOSTA COMERCIAL - SISTEMA BLOCOK</h1>
-                <p><strong>Cliente / Projeto:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+                <h1 style="color: #2c3e50; margin: 0 0 5px 0;">PROPOSTA COMERCIAL</h1>
+                <p><strong>Cliente / Obra:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
             </div>
             
             <h3 style="color: #2c3e50;">1. Quantitativo de Painéis (${pag.toUpperCase()})</h3>
@@ -364,7 +369,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let qtd = Math.ceil(d.liquida / 0.81); let preco = precosBlocok[esp][pag] * qtd;
         valorTotalBlocos += preco;
         html += `<tr><td><strong>${esp} cm</strong></td><td>${d.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${d.vaos.toFixed(2)} m²</td><td style="color:${configVisualNuvem.cor}; font-weight:bold;">${d.liquida.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
-        linhasRomaneioBlocos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">${iBloco++}</td><td style="border: 1px solid #000; padding: 8px;">Painel BLOCOK de ${esp} cm</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${qtd} peças</strong></td></tr>`;
+        linhasRomaneioBlocos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">${iBloco++}</td><td style="border: 1px solid #000; padding: 8px;">Painel de Alvenaria ${esp} cm</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${qtd} peças</strong></td></tr>`;
     }
     html += `</table>`;
 
@@ -405,7 +410,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
                 <p style="margin: 0 0 10px 0; color: #333; font-size: 13px;">Baseado em uma produtividade média de <strong>${produtividade} m²/dia</strong> por equipe.</p>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 14px; font-weight: bold;">Tempo estimado de montagem das paredes:</span>
-                    <strong style="font-size: 18px; color: ${configVisualNuvem.cor}; background: #fdf2e9; padding: 5px 15px; border-radius: 4px;">${diasEstimados} dia(s) útil(eis)</strong>
+                    <strong style="font-size: 18px; color: ${configVisualNuvem.cor}; padding: 5px 15px; border-radius: 4px;">${diasEstimados} dia(s) útil(eis)</strong>
                 </div>
             </div>`;
     }
@@ -420,8 +425,8 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <div class="box-comparativo">
             <h4 style="margin: 0 0 10px 0; color: #555;">Parede Pronta (Material + Mão de Obra)</h4>
             <div class="grafico-linha"><span class="lbl-grafico">Convencional</span><div class="barra-bg"><div class="barra-fill-bad" style="width: 100%;">&nbsp;</div></div><span class="val-grafico" style="color:#e74c3c;">R$ ${totalConvPronto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
-            <div class="grafico-linha"><span class="lbl-grafico">BLOCOK Pronto</span><div class="barra-bg"><div class="barra-fill-good" style="background: ${configVisualNuvem.cor}; width: ${(totalBlocokPronto/totalConvPronto)*100}%;">&nbsp;</div></div><span class="val-grafico" style="color:${configVisualNuvem.cor};">R$ ${totalBlocokPronto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
-            <div style="text-align:center; margin-top:15px; background:#fdf2e9; padding:10px; color:${configVisualNuvem.cor}; font-weight:bold; border-radius: 4px; border: 1px solid ${configVisualNuvem.cor};">Economia Estimada: R$ ${economiaReais > 0 ? economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
+            <div class="grafico-linha"><span class="lbl-grafico">Seu Sistema</span><div class="barra-bg"><div class="barra-fill-good" style="background: ${configVisualNuvem.cor}; width: ${(totalBlocokPronto/totalConvPronto)*100}%;">&nbsp;</div></div><span class="val-grafico" style="color:${configVisualNuvem.cor};">R$ ${totalBlocokPronto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
+            <div style="text-align:center; margin-top:15px; padding:10px; color:${configVisualNuvem.cor}; font-weight:bold; border-radius: 4px; border: 1px dashed ${configVisualNuvem.cor};">Economia Estimada: R$ ${economiaReais > 0 ? economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
     }
 
     html += `<p style="font-size:10px; text-align:center; margin-top:20px; color: #95a5a6;">* Documento gerado digitalmente.</p></div>`;
@@ -435,7 +440,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
                 <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
                 <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total:</strong> ${totalAreaLiquida.toFixed(2)} m²</p>
             </div>
-            <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">1. Separação de Painéis BLOCOK</h3>
+            <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">1. Separação de Painéis Estruturais</h3>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
                 <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Quantidade</th></tr>
                 ${linhasRomaneioBlocos}
@@ -453,7 +458,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     html += `</div>
     <div style="display:flex; gap:10px; margin-top:20px; flex-wrap: wrap;">
-        <button id="downloadPdf" style="flex:1; min-width: 150px; padding:15px; background:#ef4444; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 PROPOSTA (PDF)</button>
+        <button id="downloadPdf" style="flex:1; min-width: 150px; padding:15px; background:${configVisualNuvem.cor}; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 PROPOSTA (PDF)</button>
         <button id="sendWhatsApp" style="flex:1; min-width: 150px; padding:15px; background:#10b981; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">💬 MANDAR NO ZAP</button>
         <button id="downloadRomaneio" style="flex:1; min-width: 150px; padding:15px; background:#475569; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">🏭 ROMANEIO FÁBRICA</button>
     </div>`;
@@ -462,20 +467,20 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     document.getElementById('downloadPdf').onclick = () => {
         const btn = document.getElementById('downloadPdf'); btn.innerText = "⏳..."; btn.style.backgroundColor = "#94a3b8";
-        html2pdf().set({ margin:0, filename:`Proposta_BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(document.getElementById('pdfContent')).save().then(() => {
-            btn.innerText = "📄 PROPOSTA (PDF)"; btn.style.backgroundColor = "#ef4444";
+        html2pdf().set({ margin:0, filename:`Proposta_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(document.getElementById('pdfContent')).save().then(() => {
+            btn.innerText = "📄 PROPOSTA (PDF)"; btn.style.backgroundColor = configVisualNuvem.cor;
         });
     };
     document.getElementById('downloadRomaneio').onclick = () => {
         const btn = document.getElementById('downloadRomaneio'); btn.innerText = "⏳..."; btn.style.backgroundColor = "#94a3b8";
         const elementoRomaneio = document.getElementById('pdfRomaneioContent').children[0];
-        html2pdf().set({ margin:0, filename:`Romaneio_Carga_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(elementoRomaneio).save().then(() => {
+        html2pdf().set({ margin:0, filename:`Romaneio_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(elementoRomaneio).save().then(() => {
             btn.innerText = "🏭 ROMANEIO FÁBRICA"; btn.style.backgroundColor = "#475569";
         });
     };
     document.getElementById('sendWhatsApp').onclick = () => {
         if(!telefone) return alert("Preencha o WhatsApp.");
-        let t = `*PROPOSTA COMERCIAL - BLOCOK* 🧱\n\nOlá, *${nome.toUpperCase()}*!\n\n📏 *Área Total:* ${totalAreaLiquida.toFixed(2)} m²\n`;
+        let t = `*PROPOSTA COMERCIAL* 🧱\n\nOlá, *${nome.toUpperCase()}*!\n\n📏 *Área Total:* ${totalAreaLiquida.toFixed(2)} m²\n`;
         if(frete > 0) { t += `🚚 *Frete:* R$ ${frete.toFixed(2)}\n`; }
         t += `💰 *TOTAL A PAGAR:* R$ ${valorGlobalObra.toFixed(2)}\n\nEstou enviando o *PDF detalhado*!`;
         window.open(`https://api.whatsapp.com/send?phone=55${telefone}&text=${encodeURIComponent(t)}`, '_blank');
