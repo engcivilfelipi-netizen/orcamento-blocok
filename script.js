@@ -205,7 +205,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     // --- HTML DO PDF PRINCIPAL ---
     let htmlPdf = `
-    <div id="pdfContent" style="padding: 30px; font-family: Arial, sans-serif; background: white; color: black; min-height: 800px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+    <div id="pdfContent" style="padding: 20px; padding-top: 10px; font-family: Arial, sans-serif; background: white; color: black; min-height: 800px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: none;">
             <tr><td style="width: 50%; border: none;"></td><td style="width: 50%; text-align: right; vertical-align: middle; border: none; padding-bottom: 10px;">${tagLogoPdf}</td></tr>
         </table>
@@ -301,7 +301,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     htmlPdf += `<p style="font-size:10px; text-align:center; margin-top:30px; color: #95a5a6;">* Documento gerado digitalmente.</p></div>`;
 
-    // --- HTML DO ROMANEIO (Visível para Preview e Captura) ---
+    // --- HTML DO ROMANEIO ---
     let htmlRomaneio = `
     <div id="pdfRomaneio" style="padding: 40px; font-family: Arial, sans-serif; background: white; color: black; width: 100%; min-height: 800px; border: 1px solid #e2e8f0;">
         <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
@@ -318,7 +318,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     const caixa = document.getElementById('caixaResultado');
     
-    // Mostra os Botões primeiro e depois os 2 Previews
     caixa.innerHTML = `
     <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; background: #0b0f19; padding: 15px; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
         <button id="btnPdf" style="flex:1; min-width: 150px; padding:15px; background:${cor}; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 BAIXAR PROPOSTA</button>
@@ -333,13 +332,31 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     
     caixa.style.display = 'block';
 
-    // A MÁGICA DO PDF SEM TELA EM BRANCO (O scrollY: 0 resolve o problema)
+    // A MÁGICA: Configuração de PDF que obriga a tela a subir e força largura (anti-tela branca)
+    const optPDF = {
+        margin: 10,
+        filename: `Proposta_${nome.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 900 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    const optRomaneio = {
+        margin: 10,
+        filename: `Romaneio_${nome.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 900 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
     document.getElementById('btnPdf').onclick = () => { 
-        html2pdf().set({margin:0, filename:`Proposta_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{format:'a4'}}).from(document.getElementById('pdfContent')).save(); 
+        window.scrollTo(0,0);
+        html2pdf().set(optPDF).from(document.getElementById('pdfContent')).save(); 
     };
     
     document.getElementById('btnRom').onclick = () => { 
-        html2pdf().set({margin:0, filename:`Romaneio_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{format:'a4'}}).from(document.getElementById('pdfRomaneio')).save(); 
+        window.scrollTo(0,0);
+        html2pdf().set(optRomaneio).from(document.getElementById('pdfRomaneio')).save(); 
     };
     
     document.getElementById('btnZap').onclick = () => {
