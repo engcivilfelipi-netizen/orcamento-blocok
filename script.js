@@ -44,20 +44,15 @@ function salvarEstado() {
     localStorage.setItem('blocokData', JSON.stringify(dados));
 }
 
-// CARREGAR COM SISTEMA "AUTO-CURA" (EVITA TRAVAMENTO)
 function carregarEstado() {
     try {
         const dataJSON = localStorage.getItem('blocokData');
         if(dataJSON) {
             const dados = JSON.parse(dataJSON);
             paredesMedidas = dados.paredes || [];
-
-            // VALIDAÇÃO DE SEGURANÇA: Se tiver dados velhos incompatíveis, ele limpa sozinho.
             if (paredesMedidas.length > 0 && typeof paredesMedidas[0] === 'number') {
-                console.warn("Memória antiga detectada. Limpando por segurança.");
                 paredesMedidas = [];
             }
-
             pixelsPorMetro = dados.escala || 0;
 
             for (let id in dados.inputs) {
@@ -68,33 +63,27 @@ function carregarEstado() {
                 }
             }
             atualizarTabela();
-            
             if(pixelsPorMetro > 0) {
                 document.getElementById('btnMedir').disabled = false;
                 document.getElementById('btnMedir').style.borderColor = '#ff6b00';
                 document.getElementById('btnMedir').style.color = '#ff6b00';
             }
         }
-
         const savedImage = localStorage.getItem('blocokImage');
         if(savedImage) imagemPlanta.src = savedImage;
     } catch (erro) {
-        console.error("Erro na memória do navegador. Resetando dados...", erro);
         localStorage.removeItem('blocokData');
         paredesMedidas = [];
     }
 }
 
-// Ações do Gerenciador
 document.getElementById('btnSalvarProjeto').onclick = () => {
     let nome = document.getElementById('nomeProjetoAtivo').value.trim();
     if(!nome) return alert("Digite um nome para a obra no painel Gerenciador antes de salvar.");
-    
     salvarEstado(); 
     const currentData = JSON.parse(localStorage.getItem('blocokData'));
     const currentImage = localStorage.getItem('blocokImage');
     if (currentImage) currentData.imagem = currentImage;
-
     projetosDB[nome] = currentData;
     localStorage.setItem('blocok_projetosDB', JSON.stringify(projetosDB));
     atualizarSelectProjetos();
@@ -109,9 +98,7 @@ document.getElementById('btnCarregarProjeto').onclick = () => {
         if (dados.imagem) {
             localStorage.setItem('blocokImage', dados.imagem);
             delete dados.imagem;
-        } else {
-            localStorage.removeItem('blocokImage');
-        }
+        } else { localStorage.removeItem('blocokImage'); }
         localStorage.setItem('blocokData', JSON.stringify(dados));
         location.reload(); 
     }
@@ -129,19 +116,16 @@ document.getElementById('btnExcluirProjeto').onclick = () => {
 };
 
 document.getElementById('btnLimpar').onclick = () => {
-    if(confirm("ATENÇÃO: Isso vai apagar a Área de Trabalho (As obras salvas no banco não serão afetadas). Continuar?")) {
-        localStorage.removeItem('blocokData');
-        localStorage.removeItem('blocokImage');
+    if(confirm("ATENÇÃO: Isso vai apagar a Área de Trabalho. Continuar?")) {
+        localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage');
         location.reload(); 
     }
 };
 
 document.querySelectorAll('.save-state').forEach(input => {
-    input.addEventListener('change', salvarEstado);
-    input.addEventListener('input', salvarEstado);
+    input.addEventListener('change', salvarEstado); input.addEventListener('input', salvarEstado);
 });
 
-// Toggles Visuais
 const chkInsumos = document.getElementById('chkInsumos');
 const painelInsumos = document.getElementById('painelInsumos');
 chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstado(); });
@@ -170,9 +154,7 @@ imagemPlanta.onload = () => {
     statusBar.innerText = "Planta pronta. Pode continuar o trabalho.";
 };
 
-document.getElementById('btnCalibrar').onclick = () => {
-    estadoAtual = 'calibrando_p1'; statusBar.innerText = "Calibração: Clique no PONTO 1.";
-};
+document.getElementById('btnCalibrar').onclick = () => { estadoAtual = 'calibrando_p1'; statusBar.innerText = "Calibração: Clique no PONTO 1."; };
 
 document.getElementById('btnMedir').onclick = () => {
     if(pixelsPorMetro === 0) return alert("Calibre a escala primeiro!");
@@ -188,7 +170,6 @@ canvas.onclick = (e) => {
     } else if (estadoAtual === 'calibrando_p2') {
         ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#00f0ff'; ctx.fill();
         ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#00f0ff'; ctx.stroke();
-        
         let d = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2));
         let real = prompt("Quantos METROS REAIS tem essa linha? (Ex: 0.80)");
         if(real && !isNaN(real.replace(',','.'))) {
@@ -206,7 +187,6 @@ canvas.onclick = (e) => {
     } else if (estadoAtual === 'medindo_p2') {
         ctx.beginPath(); ctx.arc(x,y,4,0,2*Math.PI); ctx.fillStyle='#ff6b00'; ctx.fill();
         ctx.beginPath(); ctx.moveTo(ponto1.x, ponto1.y); ctx.lineTo(x,y); ctx.strokeStyle='#ff6b00'; ctx.lineWidth=3; ctx.stroke();
-        
         let d = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2));
         let m = d / pixelsPorMetro;
         adicionarParede(m, document.getElementById('espessuraCorrente').value);
@@ -225,7 +205,6 @@ document.getElementById('btnAdicionarOitao').onclick = () => {
     let b = parseFloat(document.getElementById('baseOitao').value.replace(',','.'));
     let a = parseFloat(document.getElementById('alturaOitao').value.replace(',','.'));
     let esp = document.getElementById('espessuraCorrente').value;
-    
     if(b > 0 && a > 0) {
         let areaFixaOitao = (b * a) / 2;
         paredesMedidas.push({ tipo: 'oitao', comp: b, alturaOitao: a, esp: esp, areaVaos: 0, areaFixa: areaFixaOitao });
@@ -234,51 +213,31 @@ document.getElementById('btnAdicionarOitao').onclick = () => {
     } else { alert("Preencha a Base e a Altura do Oitão corretamente."); }
 };
 
-function adicionarParede(comp, esp) {
-    paredesMedidas.push({ tipo: 'parede', comp: comp, esp: esp, areaVaos: 0, areaFixa: 0 });
-    atualizarTabela(); salvarEstado();
-}
-
-function removerP(index) {
-    paredesMedidas.splice(index, 1);
-    atualizarTabela(); salvarEstado();
-}
+function adicionarParede(comp, esp) { paredesMedidas.push({ tipo: 'parede', comp: comp, esp: esp, areaVaos: 0, areaFixa: 0 }); atualizarTabela(); salvarEstado(); }
+function removerP(index) { paredesMedidas.splice(index, 1); atualizarTabela(); salvarEstado(); }
 
 window.addVao = function(index) {
     let l = prompt(`LARGURA do vão (m):`); if (!l || isNaN(l.replace(',','.'))) return;
     let a = prompt(`ALTURA do vão (m):`); if (!a || isNaN(a.replace(',','.'))) return;
-    
     let areaVao = parseFloat(l.replace(',','.')) * parseFloat(a.replace(',','.'));
     paredesMedidas[index].areaVaos += areaVao;
     atualizarTabela(); salvarEstado();
 };
 
 function atualizarTabela() {
-    const t = document.getElementById('corpoTabela');
-    t.innerHTML = "";
+    const t = document.getElementById('corpoTabela'); t.innerHTML = "";
     paredesMedidas.forEach((p, i) => {
         let txtVao = p.areaVaos > 0 ? `<span style="color:#ef4444;font-weight:bold;">-${p.areaVaos.toFixed(2)}</span>` : "0.00";
         let altOitaoSegura = p.alturaOitao ? p.alturaOitao.toFixed(2) : "0.00";
         let compSeguro = p.comp ? p.comp.toFixed(2) : "0.00";
-        
         let desc = p.tipo === 'oitao' ? `B:${compSeguro} x A:${altOitaoSegura}` : `${compSeguro}m`;
         let badgeTipo = p.tipo === 'oitao' ? `<span style="color:#a855f7; font-weight:bold;">🔺 Oitão P${i+1}</span>` : `Parede P${i+1}`;
 
-        t.innerHTML += `
-            <tr>
-                <td>${badgeTipo}</td>
-                <td>${desc}</td>
-                <td><span class="badge-esp">${p.esp}cm</span></td>
-                <td>${txtVao}</td>
-                <td class="acoes-tabela">
-                    <button type="button" class="btn-add-vao" onclick="addVao(${i})">+ Vão</button>
-                    <button type="button" class="btn-remover" onclick="removerP(${i})">X</button>
-                </td>
-            </tr>`;
+        t.innerHTML += `<tr><td>${badgeTipo}</td><td>${desc}</td><td><span class="badge-esp">${p.esp}cm</span></td><td>${txtVao}</td>
+            <td class="acoes-tabela"><button type="button" class="btn-add-vao" onclick="addVao(${i})">+ Vão</button><button type="button" class="btn-remover" onclick="removerP(${i})">X</button></td></tr>`;
     });
 }
 
-// Exportar CSV
 document.getElementById('btnExportarExcel').onclick = () => {
     if(paredesMedidas.length === 0) return alert("Lista vazia. Não há o que exportar.");
     let csv = "Item;Tipo;Espessura(cm);Comp_Base(m);Altura_Oitao(m);Area_Vaos(m2)\n";
@@ -287,17 +246,14 @@ document.getElementById('btnExportarExcel').onclick = () => {
         csv += `${i+1};${p.tipo ? p.tipo.toUpperCase() : 'PAREDE'};${p.esp};${p.comp.toFixed(2)};${altOitao};${p.areaVaos.toFixed(2)}\n`;
     });
     let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `Levantamento_BLOCOK_${new Date().getTime()}.csv`;
-    link.click();
+    let link = document.createElement("a"); link.href = URL.createObjectURL(blob);
+    link.download = `Levantamento_BLOCOK_${new Date().getTime()}.csv`; link.click();
 };
 
 // ==========================================
-// 🚀 3. INICIALIZAÇÃO E GERAÇÃO DO PDF
+// 🚀 3. INICIALIZAÇÃO, PDF E WHATSAPP
 // ==========================================
 
-// Chama no início para restaurar a tela
 carregarEstado();
 atualizarSelectProjetos();
 painelInsumos.style.display = document.getElementById('chkInsumos').checked ? 'block' : 'none';
@@ -309,7 +265,8 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     if(paredesMedidas.length === 0) return alert("A lista de paredes está vazia.");
 
-    let nome = document.getElementById('nomeProjetoAtivo').value || document.getElementById('nomeProjeto').value || "Não informado";
+    let nome = document.getElementById('nomeProjetoAtivo').value || "Não informado";
+    let telefoneCliente = document.getElementById('whatsappCliente').value.replace(/\D/g, '');
     let h = parseFloat(document.getElementById('alturaGlobal').value);
     let pag = document.getElementById('formaPagamento').value;
     
@@ -321,7 +278,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     
     paredesMedidas.forEach(p => {
         if(!resumoParedes[p.esp]) resumoParedes[p.esp] = { bruta: 0, vaos: 0, liquida: 0 };
-        
         let areaBrutaParede = p.tipo === 'oitao' ? p.areaFixa : (p.comp * h);
         let areaLiquidaParede = areaBrutaParede - p.areaVaos;
         if(areaLiquidaParede < 0) areaLiquidaParede = 0;
@@ -329,7 +285,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         resumoParedes[p.esp].bruta += areaBrutaParede;
         resumoParedes[p.esp].vaos += p.areaVaos;
         resumoParedes[p.esp].liquida += areaLiquidaParede;
-        
         totalAreaBruta += areaBrutaParede;
         totalAreaLiquida += areaLiquidaParede;
     });
@@ -356,22 +311,14 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         if (dados.bruta === 0) continue;
         let qtdBlocos = Math.ceil(dados.liquida / 0.81);
         let precoTotalBloco = precosBlocok[esp][pag] * qtdBlocos;
-        
         qtdTotalBlocos += qtdBlocos; valorTotalBlocos += precoTotalBloco;
 
-        html += `
-                <tr>
-                    <td><strong>${esp} cm</strong></td>
-                    <td>${dados.bruta.toFixed(2)} m²</td>
-                    <td style="color:#e74c3c;">- ${dados.vaos.toFixed(2)} m²</td>
-                    <td style="color:#27ae60; font-weight:bold;">${dados.liquida.toFixed(2)} m²</td>
-                    <td>${qtdBlocos} un.</td>
-                    <td>R$ ${precoTotalBloco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
-                </tr>`;
+        html += `<tr><td><strong>${esp} cm</strong></td><td>${dados.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${dados.vaos.toFixed(2)} m²</td><td style="color:#27ae60; font-weight:bold;">${dados.liquida.toFixed(2)} m²</td><td>${qtdBlocos} un.</td><td>R$ ${precoTotalBloco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
     }
     html += `</table>`;
 
     let valorTotalInsumos = 0;
+    
     if (incluirInsumos) {
         let sacosArgamassa = Math.ceil(totalAreaLiquida / 10);
         let tubosPU = Math.ceil(totalAreaLiquida / 3);
@@ -414,6 +361,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
                 </div>
             </div>`;
 
+    let economiaReais = 0;
     if (incluirComparativo) {
         let cBruto = parseFloat(document.getElementById('custoConvBruto').value || 0);
         let cPronto = parseFloat(document.getElementById('custoConvPronto').value || 0);
@@ -424,7 +372,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let totalBlocokBruto = valorGlobalObra; 
         let totalBlocokPronto = valorGlobalObra + (totalAreaLiquida * cMO);
 
-        let economiaReais = totalConvPronto - totalBlocokPronto;
+        economiaReais = totalConvPronto - totalBlocokPronto;
         let pctEconomia = ((economiaReais / totalConvPronto) * 100).toFixed(1);
 
         html += `
@@ -467,9 +415,14 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         </div>
     </div>
     
-    <button id="downloadPdf" style="margin-top:20px; width: 100%; padding: 15px; background: #ef4444; color: white; border: none; font-size: 16px; font-weight: bold; border-radius: 6px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;">
-        📄 Baixar Proposta em PDF
-    </button>`;
+    <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button id="downloadPdf" style="flex: 1; padding: 15px; background: #ef4444; color: white; border: none; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; text-transform: uppercase;">
+            📄 Baixar PDF
+        </button>
+        <button id="sendWhatsApp" style="flex: 1; padding: 15px; background: #10b981; color: white; border: none; font-size: 15px; font-weight: bold; border-radius: 6px; cursor: pointer; text-transform: uppercase;">
+            💬 Mandar no Zap
+        </button>
+    </div>`;
 
     const caixa = document.getElementById('caixaResultado');
     caixa.innerHTML = html; 
@@ -478,21 +431,40 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     document.getElementById('downloadPdf').onclick = () => {
         const el = document.getElementById('pdfContent');
         const btn = document.getElementById('downloadPdf');
-        btn.innerText = "⏳ Gerando...";
-        btn.style.backgroundColor = "#475569";
-        
-        html2pdf().set({ 
-            margin: 0, 
-            filename: `Proposta_BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, 
-            html2canvas: {scale: 2, scrollY: 0},
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#475569";
+        html2pdf().set({ margin: 0, filename: `Proposta_BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas: {scale: 2, scrollY: 0}, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(el).save().then(() => {
-            btn.innerText = "✅ PDF Salvo!";
-            btn.style.backgroundColor = "#10b981";
-            setTimeout(() => {
-                btn.innerText = "📄 Baixar Proposta em PDF";
-                btn.style.backgroundColor = "#ef4444";
-            }, 3000);
+            btn.innerText = "✅ PDF Salvo!"; btn.style.backgroundColor = "#10b981";
+            setTimeout(() => { btn.innerText = "📄 Baixar PDF"; btn.style.backgroundColor = "#ef4444"; }, 3000);
         });
+    };
+
+    // --- MAGIA DO WHATSAPP AQUI ---
+    document.getElementById('sendWhatsApp').onclick = () => {
+        if(!telefoneCliente || telefoneCliente.length < 10) {
+            alert("Por favor, preencha o campo 'WhatsApp do Cliente' corretamente (com DDD) na seção de Dados do Projeto.");
+            document.getElementById('whatsappCliente').focus();
+            return;
+        }
+
+        let textoZap = `*PROPOSTA TÉCNICA - BLOCOK* 🧱\n\n`;
+        textoZap += `Olá, *${nome.toUpperCase()}*! Segue o resumo do seu orçamento:\n\n`;
+        textoZap += `📏 *Área Total Construída:* ${totalAreaLiquida.toFixed(2)} m²\n`;
+        textoZap += `🧱 *Total em Painéis:* R$ ${valorTotalBlocos.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
+        
+        if(incluirInsumos) {
+            textoZap += `🧴 *Insumos Recomendados:* R$ ${valorTotalInsumos.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
+        }
+        
+        textoZap += `\n💰 *INVESTIMENTO TOTAL:* R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n\n`;
+
+        if(incluirComparativo && economiaReais > 0) {
+            textoZap += `✅ *Sua Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})} em relação à alvenaria pronta convencional!\n\n`;
+        }
+
+        textoZap += `Vou enviar o *PDF detalhado* da proposta logo em seguida.\nQualquer dúvida, estou à disposição!`;
+
+        let url = `https://api.whatsapp.com/send?phone=55${telefoneCliente}&text=${encodeURIComponent(textoZap)}`;
+        window.open(url, '_blank');
     };
 };
