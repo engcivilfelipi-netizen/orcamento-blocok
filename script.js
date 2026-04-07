@@ -174,7 +174,7 @@ function renderizarTabela() {
 window.removerP = (i) => { paredesMedidas.splice(i, 1); renderizarTabela(); };
 
 // ==========================================
-// 🚀 GERAÇÃO DE PROPOSTA E ROMANEIO (PDF BUG FIX DEFINITIVO)
+// 🚀 GERAÇÃO DE PROPOSTA E ROMANEIO
 // ==========================================
 document.getElementById('formCalculadora').onsubmit = (e) => {
     e.preventDefault();
@@ -203,9 +203,8 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     let tagLogoPdf = configVisualNuvem.logo ? `<img src="${configVisualNuvem.logo}" style="max-height: 80px; max-width: ${configVisualNuvem.tamanho}%; display: block; margin-left: auto;">` : '';
 
-    // --- HTML DO PDF PRINCIPAL ---
     let htmlPdf = `
-    <div style="width: 100%; overflow-x: auto; background: #e2e8f0; padding: 15px; border-radius: 8px;">
+    <div id="wrapperPdf" style="width: 100%; overflow-x: auto; background: #e2e8f0; padding: 15px; border-radius: 8px; box-sizing: border-box;">
         <div id="pdfContent" style="width: 794px; min-width: 794px; padding: 40px; box-sizing: border-box; font-family: Arial, sans-serif; background: white; color: black; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: none;">
                 <tr><td style="width: 50%; border: none;"></td><td style="width: 50%; text-align: right; vertical-align: middle; border: none; padding-bottom: 10px;">${tagLogoPdf}</td></tr>
@@ -301,7 +300,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     // --- HTML DO ROMANEIO ---
     let htmlRomaneio = `
-    <div style="width: 100%; overflow-x: auto; background: #e2e8f0; padding: 15px; border-radius: 8px;">
+    <div id="wrapperRomaneio" style="width: 100%; overflow-x: auto; background: #e2e8f0; padding: 15px; border-radius: 8px; box-sizing: border-box;">
         <div id="pdfRomaneio" style="width: 794px; min-width: 794px; padding: 40px; box-sizing: border-box; font-family: Arial, sans-serif; background: white; color: black; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
                 <h1 style="margin: 0 0 5px 0; font-size: 22px; text-transform: uppercase;">ORDEM DE SEPARAÇÃO E CARGA (ROMANEIO)</h1>
@@ -317,7 +316,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     </div>`;
 
     const caixa = document.getElementById('caixaResultado');
-    
     caixa.innerHTML = `
     <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; background: #0b0f19; padding: 15px; border-radius: 8px; border: 1px solid #334155; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
         <button id="btnPdf" style="flex:1; min-width: 150px; padding:15px; background:${cor}; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 BAIXAR PROPOSTA</button>
@@ -329,35 +327,41 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     <div style="margin-bottom: 10px; margin-top: 20px; color: #94a3b8; font-size: 12px; text-align: center;">⬇️ PREVIEW DO ROMANEIO (Arraste para o lado se necessário) ⬇️</div>
     ${htmlRomaneio}
     `;
-    
     caixa.style.display = 'block';
 
-    // ==========================================
-    // CONFIGURAÇÃO DO MOTOR PDF (CORRIGIDA: SCROLL E LARGURA FIXA DE VOLTA)
-    // ==========================================
-    const optPDF = {
-        margin: 10,
-        filename: `Proposta_${nome.replace(/\s+/g, '_')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    // =========================================================
+    // 🛡️ O CÓDIGO BLINDADO CONTRA TELA BRANCA E ZOOM
+    // =========================================================
+    const dispararPDFSeguro = (idConteudo, idWrapper, nomeArquivo, btnOrigem) => {
+        let textoAntigo = btnOrigem.innerText;
+        btnOrigem.innerText = "⏳ GERANDO PDF...";
+        
+        let wrapper = document.getElementById(idWrapper);
+        wrapper.style.overflowX = 'visible';
+
+        let posOriginal = window.scrollY;
+        window.scrollTo(0, 0);
+
+        setTimeout(() => {
+            const opt = {
+                margin: 10,
+                filename: nomeArquivo,
+                image: { type: 'jpeg', quality: 1 },
+                // O segredo do anti-zoom: windowWidth 1200 garante tela de sobra pra foto!
+                html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 1200 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(document.getElementById(idConteudo)).save().then(() => {
+                wrapper.style.overflowX = 'auto';
+                window.scrollTo(0, posOriginal);
+                btnOrigem.innerText = textoAntigo;
+            });
+        }, 300);
     };
 
-    const optRomaneio = {
-        margin: 10,
-        filename: `Romaneio_${nome.replace(/\s+/g, '_')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 }, 
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    document.getElementById('btnPdf').onclick = () => { 
-        html2pdf().set(optPDF).from(document.getElementById('pdfContent')).save(); 
-    };
-    
-    document.getElementById('btnRom').onclick = () => { 
-        html2pdf().set(optRomaneio).from(document.getElementById('pdfRomaneio')).save(); 
-    };
+    document.getElementById('btnPdf').onclick = (evt) => dispararPDFSeguro('pdfContent', 'wrapperPdf', `Proposta_${nome.replace(/\s+/g, '_')}.pdf`, evt.target);
+    document.getElementById('btnRom').onclick = (evt) => dispararPDFSeguro('pdfRomaneio', 'wrapperRomaneio', `Romaneio_${nome.replace(/\s+/g, '_')}.pdf`, evt.target);
     
     document.getElementById('btnZap').onclick = () => {
         if(!telefone) return alert("Preencha o WhatsApp do cliente.");
