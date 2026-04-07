@@ -1,15 +1,8 @@
-// ==========================================
-// 🔒 CONFIGURAÇÃO DE USUÁRIOS E PERFIS
-// ==========================================
-const USUARIOS = {
-    "admin": { senha: "blocok2024", perfil: "admin" },
-    "vendedor1": { senha: "vendas01", perfil: "vendedor" },
-    "vendedor2": { senha: "vendas02", perfil: "vendedor" }
-};
-
 let precosBlocok = {
     "10": { avista: 0, prazo: 0 }, "13": { avista: 0, prazo: 0 }, "15": { avista: 0, prazo: 0 }, "20": { avista: 0, prazo: 0 }
 };
+
+let listaUsuariosGlobais = {}; // Agora a lista de usuários vem da nuvem!
 
 let paredesMedidas = []; 
 let imagemPlanta = new Image();
@@ -58,51 +51,83 @@ async function carregarPrecosDaNuvem() {
             };
             await db.collection("configuracoes").doc("precosGlobais").set(precosBlocok);
         }
-        
-        // Povoa Blocos
         document.getElementById('p10v').value = precosBlocok["10"].avista; document.getElementById('p10p').value = precosBlocok["10"].prazo;
         document.getElementById('p13v').value = precosBlocok["13"].avista; document.getElementById('p13p').value = precosBlocok["13"].prazo;
         document.getElementById('p15v').value = precosBlocok["15"].avista; document.getElementById('p15p').value = precosBlocok["15"].prazo;
         document.getElementById('p20v').value = precosBlocok["20"].avista; document.getElementById('p20p').value = precosBlocok["20"].prazo;
         
-        // Povoa Insumos, Comparativo e Produtividade se existirem na nuvem
         const carregarSeExistir = (id, chave) => { if(precosBlocok[chave] !== undefined) document.getElementById(id).value = precosBlocok[chave]; };
-        carregarSeExistir('precoArgamassa', 'precoArgamassa');
-        carregarSeExistir('precoPU', 'precoPU');
-        carregarSeExistir('precoTela', 'precoTela');
-        carregarSeExistir('custoConvBruto', 'custoConvBruto');
-        carregarSeExistir('custoConvPronto', 'custoConvPronto');
-        carregarSeExistir('custoBlocokMO', 'custoBlocokMO');
+        carregarSeExistir('precoArgamassa', 'precoArgamassa'); carregarSeExistir('precoPU', 'precoPU'); carregarSeExistir('precoTela', 'precoTela');
+        carregarSeExistir('custoConvBruto', 'custoConvBruto'); carregarSeExistir('custoConvPronto', 'custoConvPronto'); carregarSeExistir('custoBlocokMO', 'custoBlocokMO');
         carregarSeExistir('produtividadeDiaria', 'produtividadeDiaria');
-        
     } catch (error) { console.error("Erro ao buscar preços:", error); }
 }
 
 document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
-    let btn = document.getElementById('btnSalvarPrecosGlobais');
-    btn.innerText = "⏳ Atualizando Servidor..."; btn.disabled = true;
-
-    // Agora salva TUDO (Blocos, Insumos, Comparativo e Produtividade)
+    let btn = document.getElementById('btnSalvarPrecosGlobais'); btn.innerText = "⏳ Atualizando Servidor..."; btn.disabled = true;
     const novosPrecos = {
         "10": { avista: parseFloat(document.getElementById('p10v').value || 0), prazo: parseFloat(document.getElementById('p10p').value || 0) },
         "13": { avista: parseFloat(document.getElementById('p13v').value || 0), prazo: parseFloat(document.getElementById('p13p').value || 0) },
         "15": { avista: parseFloat(document.getElementById('p15v').value || 0), prazo: parseFloat(document.getElementById('p15p').value || 0) },
         "20": { avista: parseFloat(document.getElementById('p20v').value || 0), prazo: parseFloat(document.getElementById('p20p').value || 0) },
-        "precoArgamassa": parseFloat(document.getElementById('precoArgamassa').value || 0),
-        "precoPU": parseFloat(document.getElementById('precoPU').value || 0),
-        "precoTela": parseFloat(document.getElementById('precoTela').value || 0),
-        "custoConvBruto": parseFloat(document.getElementById('custoConvBruto').value || 0),
-        "custoConvPronto": parseFloat(document.getElementById('custoConvPronto').value || 0),
-        "custoBlocokMO": parseFloat(document.getElementById('custoBlocokMO').value || 0),
+        "precoArgamassa": parseFloat(document.getElementById('precoArgamassa').value || 0), "precoPU": parseFloat(document.getElementById('precoPU').value || 0),
+        "precoTela": parseFloat(document.getElementById('precoTela').value || 0), "custoConvBruto": parseFloat(document.getElementById('custoConvBruto').value || 0),
+        "custoConvPronto": parseFloat(document.getElementById('custoConvPronto').value || 0), "custoBlocokMO": parseFloat(document.getElementById('custoBlocokMO').value || 0),
         "produtividadeDiaria": parseFloat(document.getElementById('produtividadeDiaria').value || 15)
     };
+    try { await db.collection("configuracoes").doc("precosGlobais").set(novosPrecos); precosBlocok = novosPrecos; alert("Configurações atualizadas com sucesso!"); } 
+    catch (error) { alert("Erro ao salvar preços."); } 
+    finally { btn.innerText = "💾 ATUALIZAR PREÇOS E CONFIGURAÇÕES DA EMPRESA"; btn.disabled = false; }
+};
 
+// ==========================================
+// 👥 GESTÃO DE USUÁRIOS E VENDEDORES NA NUVEM
+// ==========================================
+
+async function renderizarPainelUsuarios() {
+    if(!db) return;
+    const docRef = await db.collection("configuracoes").doc("usuarios").get();
+    if(docRef.exists) { listaUsuariosGlobais = docRef.data(); }
+    
+    const tbody = document.getElementById('listaVendedores'); if(!tbody) return;
+    tbody.innerHTML = "";
+    
+    for(let user in listaUsuariosGlobais) {
+        if(user === 'admin') continue; // Omitir o admin chefe para evitar que ele se delete
+        tbody.innerHTML += `
+            <tr>
+                <td><strong style="color:#3b82f6;">${user}</strong></td>
+                <td>${listaUsuariosGlobais[user].senha}</td>
+                <td><button type="button" class="btn-remover" onclick="removerVendedor('${user}')">Excluir</button></td>
+            </tr>`;
+    }
+}
+
+document.getElementById('btnAddVendedor').onclick = async () => {
+    let u = document.getElementById('novoUsuarioVendedor').value.trim().toLowerCase();
+    let p = document.getElementById('novaSenhaVendedor').value.trim();
+    if(!u || !p) return alert("Preencha o Login e a Senha para criar um vendedor.");
+    if(u === 'admin') return alert("O login 'admin' não pode ser modificado por aqui.");
+    
+    let btn = document.getElementById('btnAddVendedor'); btn.innerText = "⏳..."; btn.disabled = true;
+    
+    listaUsuariosGlobais[u] = { senha: p, perfil: 'vendedor' };
+    
     try {
-        await db.collection("configuracoes").doc("precosGlobais").set(novosPrecos);
-        precosBlocok = novosPrecos;
-        alert("Configurações atualizadas com sucesso na Nuvem! Todos os vendedores já estão com os novos valores.");
-    } catch (error) { alert("Erro ao salvar preços."); } finally {
-        btn.innerText = "💾 SALVAR TODOS OS PREÇOS E CONFIGURAÇÕES NO SERVIDOR"; btn.disabled = false;
+        await db.collection("configuracoes").doc("usuarios").set(listaUsuariosGlobais);
+        document.getElementById('novoUsuarioVendedor').value = ''; document.getElementById('novaSenhaVendedor').value = '';
+        renderizarPainelUsuarios();
+    } catch(e) { alert("Erro ao salvar vendedor."); }
+    btn.innerText = "+ Adicionar"; btn.disabled = false;
+};
+
+window.removerVendedor = async function(user) {
+    if(confirm(`Tem certeza que deseja DELETAR o acesso do vendedor '${user}'? Ele não conseguirá mais entrar no sistema.`)) {
+        delete listaUsuariosGlobais[user];
+        try {
+            await db.collection("configuracoes").doc("usuarios").set(listaUsuariosGlobais);
+            renderizarPainelUsuarios();
+        } catch(e) { alert("Erro ao excluir."); }
     }
 };
 
@@ -113,21 +138,17 @@ document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
 function aplicarRestricoes(perfil) {
     if (perfil === 'admin') {
         document.getElementById('painelAdmin').style.display = 'block'; 
+        renderizarPainelUsuarios(); // Se é admin, carrega a lista de vendedores
     } else if (perfil === 'vendedor') {
         document.getElementById('painelAdmin').style.display = 'none'; 
         document.getElementById('btnLimpar').style.display = 'none';
         document.getElementById('btnExcluirProjeto').style.display = 'none';
         
-        // CORREÇÃO: Usando 'disabled' o campo vira pedra e ninguém muda nem na setinha
         const camposBloqueados = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO', 'produtividadeDiaria'];
         camposBloqueados.forEach(id => {
             let campo = document.getElementById(id);
             if(campo) {
-                campo.disabled = true; // Isso bloqueia totalmente
-                campo.style.pointerEvents = "none";
-                campo.style.backgroundColor = "#1e293b"; 
-                campo.style.color = "#64748b";
-                campo.title = "Apenas o Admin pode alterar este valor.";
+                campo.disabled = true; campo.style.pointerEvents = "none"; campo.style.backgroundColor = "#1e293b"; campo.style.color = "#64748b";
             }
         });
     }
@@ -137,26 +158,44 @@ function verificarSessao() {
     const logado = sessionStorage.getItem('blocok_logado');
     const perfil = sessionStorage.getItem('blocok_perfil');
     if (logado === 'true') {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        aplicarRestricoes(perfil);
-        carregarEstadoLocal();
-        atualizarSelectProjetosNuvem();
-        carregarPrecosDaNuvem(); // Nuvem sobrescreve o Auto-save (Garante preço atualizado)
+        document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('mainContent').style.display = 'block';
+        aplicarRestricoes(perfil); carregarEstadoLocal(); atualizarSelectProjetosNuvem(); carregarPrecosDaNuvem(); 
     }
 }
 
-document.getElementById('btnLogin').onclick = () => {
+// O NOVO LOGIN: Agora ele pergunta pro banco de dados se a pessoa existe
+document.getElementById('btnLogin').onclick = async () => {
     const user = document.getElementById('userInput').value.trim().toLowerCase();
     const pass = document.getElementById('passInput').value;
     const erro = document.getElementById('loginError');
+    let btn = document.getElementById('btnLogin');
+    
+    if(!user || !pass) return;
+    btn.innerText = "⏳ CONECTANDO AO SERVIDOR..."; btn.disabled = true;
 
-    if (USUARIOS[user] && USUARIOS[user].senha === pass) {
-        sessionStorage.setItem('blocok_logado', 'true');
-        sessionStorage.setItem('blocok_perfil', USUARIOS[user].perfil);
-        location.reload();
-    } else {
-        erro.style.display = 'block'; setTimeout(() => { erro.style.display = 'none'; }, 3000);
+    try {
+        let docRef = null;
+        if(db) docRef = await db.collection("configuracoes").doc("usuarios").get();
+        
+        if (docRef && docRef.exists) {
+            listaUsuariosGlobais = docRef.data();
+        } else {
+            // Se o banco estiver zerado (primeiro acesso da história), ele cria a conta admin oficial
+            listaUsuariosGlobais = { "admin": { senha: "blocok2024", perfil: "admin" } };
+            if(db) await db.collection("configuracoes").doc("usuarios").set(listaUsuariosGlobais);
+        }
+
+        if (listaUsuariosGlobais[user] && listaUsuariosGlobais[user].senha === pass) {
+            sessionStorage.setItem('blocok_logado', 'true');
+            sessionStorage.setItem('blocok_perfil', listaUsuariosGlobais[user].perfil);
+            location.reload();
+        } else {
+            erro.style.display = 'block'; setTimeout(() => { erro.style.display = 'none'; }, 3000);
+            btn.innerText = "ENTRAR NO SISTEMA"; btn.disabled = false;
+        }
+    } catch(e) {
+        alert("Erro ao conectar no banco de dados de segurança. Tente novamente.");
+        btn.innerText = "ENTRAR NO SISTEMA"; btn.disabled = false;
     }
 };
 
@@ -199,11 +238,8 @@ function carregarEstadoLocal() {
                 const isPriceField = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO', 'produtividadeDiaria'].includes(id);
                 
                 if(el && !(perfil === 'vendedor' && isPriceField)) {
-                    if(el.type === 'checkbox') {
-                        if (dados.inputs[id] !== undefined) el.checked = dados.inputs[id];
-                    } else {
-                        if (dados.inputs[id] !== undefined) el.value = dados.inputs[id];
-                    }
+                    if(el.type === 'checkbox') { if (dados.inputs[id] !== undefined) el.checked = dados.inputs[id]; } 
+                    else { if (dados.inputs[id] !== undefined) el.value = dados.inputs[id]; }
                 }
             }
             atualizarTabela();
@@ -356,7 +392,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     if(incluirInsumos) html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px;"><span>Total Insumos:</span><strong>R$ ${valorTotalInsumos.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
     html += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#2c3e50; margin-top:10px;"><strong>TOTAL PRODUTOS:</strong><strong style="color:#ff6b00;">R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div></div>`;
 
-    // CORREÇÃO: CRONOGRAMA GARANTIDO NO PDF
     let diasEstimados = totalAreaLiquida > 0 ? Math.ceil(totalAreaLiquida / produtividade) : 0;
     if (incluirCronograma) {
         html += `

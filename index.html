@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLOCOK System | Acesso Restrito</title>
-    <link rel="stylesheet" href="style.css?v=4">
+    <!-- Quebrando o cache com v=5 -->
+    <link rel="stylesheet" href="style.css?v=5">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -74,8 +75,7 @@
                 </div>
 
                 <div id="painelAdmin" class="controle-insercao" style="display: none; border-left-color: #f59e0b; background: #1a150b;">
-                    <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #f59e0b;">⚙️ PAINEL DO DONO (Tabela de Preços)</label>
-                    <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">A atualização dos valores altera o sistema de toda a equipe instantaneamente.</p>
+                    <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #f59e0b;">⚙️ PAINEL DO DONO (Preços e Acessos)</label>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <div style="background: #0b0f19; padding: 10px; border-radius: 6px; border: 1px solid #334155;">
@@ -107,8 +107,30 @@
                             </div>
                         </div>
                     </div>
-                    <button type="button" id="btnSalvarPrecosGlobais" class="btn-tech-primary" style="width: 100%; margin-top: 15px; background: #f59e0b; color: #1a150b;">💾 SALVAR TODOS OS PREÇOS E CONFIGURAÇÕES NO SERVIDOR</button>
-                    <p style="font-size: 11px; color: #f59e0b; margin-top: 5px; text-align: center;">*Salva a tabela de blocos e também os valores de Insumos, Comparativo e Produtividade.</p>
+                    <button type="button" id="btnSalvarPrecosGlobais" class="btn-tech-primary" style="width: 100%; margin-top: 15px; background: #f59e0b; color: #1a150b;">💾 ATUALIZAR PREÇOS E CONFIGURAÇÕES DA EMPRESA</button>
+
+                    <!-- NOVO: GESTÃO DE VENDEDORES -->
+                    <div style="border-top: 1px dashed #334155; margin-top: 25px; padding-top: 15px;">
+                        <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #3b82f6;">👥 GESTÃO DE VENDEDORES</label>
+                        <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Crie logins para sua equipe. Eles terão acesso bloqueado a estas configurações.</p>
+                        
+                        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                            <input type="text" id="novoUsuarioVendedor" class="input-tech" placeholder="Login (ex: carlos)">
+                            <input type="text" id="novaSenhaVendedor" class="input-tech" placeholder="Senha">
+                            <button type="button" id="btnAddVendedor" class="btn-tech-primary" style="background: #3b82f6; white-space: nowrap;">+ Adicionar</button>
+                        </div>
+
+                        <div class="lista-paredes" style="max-height: 200px; background: #0b0f19;">
+                            <table>
+                                <thead>
+                                    <tr><th>Login do Vendedor</th><th>Senha</th><th>Ação</th></tr>
+                                </thead>
+                                <tbody id="listaVendedores">
+                                    <!-- Povoado pelo JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="controle-insercao">
