@@ -108,7 +108,7 @@ window.removerVendedor = async function(user) {
 };
 
 // ==========================================
-// 📁 SESSÃO E BANCO DE DADOS
+// 📁 SESSÃO E BANCO DE DADOS (COM CERCADINHO)
 // ==========================================
 function aplicarRestricoes(perfil) {
     if (perfil === 'admin') { document.getElementById('painelAdmin').style.display = 'block'; renderizarPainelUsuarios(); } 
@@ -131,15 +131,51 @@ document.getElementById('btnLogin').onclick = async () => {
         let docRef = null; if(db) docRef = await db.collection("configuracoes").doc("usuarios").get();
         if (docRef && docRef.exists) { listaUsuariosGlobais = docRef.data(); } 
         else { listaUsuariosGlobais = { "admin": { senha: "blocok2024", perfil: "admin" } }; if(db) await db.collection("configuracoes").doc("usuarios").set(listaUsuariosGlobais); }
-        if (listaUsuariosGlobais[user] && listaUsuariosGlobais[user].senha === pass) { sessionStorage.setItem('blocok_logado', 'true'); sessionStorage.setItem('blocok_perfil', listaUsuariosGlobais[user].perfil); location.reload(); } 
+        
+        if (listaUsuariosGlobais[user] && listaUsuariosGlobais[user].senha === pass) { 
+            sessionStorage.setItem('blocok_logado', 'true'); 
+            sessionStorage.setItem('blocok_perfil', listaUsuariosGlobais[user].perfil); 
+            // NOVO: Salvando o nome do usuário logado para o Cercadinho
+            sessionStorage.setItem('blocok_usuario', user);
+            location.reload(); 
+        } 
         else { erro.style.display = 'block'; setTimeout(() => { erro.style.display = 'none'; }, 3000); btn.innerText = "ENTRAR NO SISTEMA"; btn.disabled = false; }
     } catch(e) { alert("Erro de conexão."); btn.innerText = "ENTRAR NO SISTEMA"; btn.disabled = false; }
 };
-document.getElementById('btnLogout').onclick = () => { sessionStorage.removeItem('blocok_logado'); sessionStorage.removeItem('blocok_perfil'); location.reload(); };
+document.getElementById('btnLogout').onclick = () => { 
+    sessionStorage.removeItem('blocok_logado'); 
+    sessionStorage.removeItem('blocok_perfil'); 
+    sessionStorage.removeItem('blocok_usuario');
+    location.reload(); 
+};
 
+// ==========================================
+// A MÁGICA DO CERCADINHO: Filtro de Nuvem
+// ==========================================
 async function atualizarSelectProjetosNuvem() {
     const select = document.getElementById('selectProjetos'); if(!select || !db) return; select.innerHTML = '<option value="">⏳...</option>';
-    try { const snap = await db.collection("obras").get(); select.innerHTML = '<option value="">-- Abrir Obra da Nuvem --</option>'; if(snap.empty) { select.innerHTML = '<option value="">Vazio</option>'; return; } snap.forEach(doc => { select.innerHTML += `<option value="${doc.id}">${doc.id}</option>`; }); } catch (error) { select.innerHTML = '<option value="">Erro</option>'; }
+    try { 
+        let snap;
+        const perfil = sessionStorage.getItem('blocok_perfil');
+        const usuarioLogado = sessionStorage.getItem('blocok_usuario');
+
+        // Se for admin, puxa a coleção inteira. Se for vendedor, puxa SÓ as dele.
+        if (perfil === 'admin') {
+            snap = await db.collection("obras").get();
+        } else {
+            snap = await db.collection("obras").where("dono", "==", usuarioLogado).get();
+        }
+        
+        select.innerHTML = '<option value="">-- Abrir Obra da Nuvem --</option>'; 
+        if(snap.empty) { select.innerHTML = '<option value="">Nenhuma obra salva</option>'; return; } 
+        
+        snap.forEach(doc => { 
+            let dadosObra = doc.data();
+            // O Admin ganha a vantagem de ver o nome do dono entre parênteses
+            let textoDono = (perfil === 'admin' && dadosObra.dono) ? ` (${dadosObra.dono})` : '';
+            select.innerHTML += `<option value="${doc.id}">${doc.id}${textoDono}</option>`; 
+        }); 
+    } catch (error) { select.innerHTML = '<option value="">Erro</option>'; }
 }
 
 function salvarEstadoLocal() {
@@ -166,17 +202,38 @@ function carregarEstadoLocal() {
 document.getElementById('btnSalvarProjeto').onclick = async () => {
     if(!db) return; let nome = document.getElementById('nomeProjetoAtivo').value.trim(); if(!nome) return alert("Digite um nome.");
     let btn = document.getElementById('btnSalvarProjeto'); btn.innerText = "⏳..."; btn.disabled = true; salvarEstadoLocal(); 
-    const currentData = JSON.parse(localStorage.getItem('blocokData')); const currentImage = localStorage.getItem('blocokImage'); if (currentImage) currentData.imagem = currentImage;
+    
+    const currentData = JSON.parse(localStorage.getItem('blocokData')); 
+    const currentImage = localStorage.getItem('blocokImage'); 
+    if (currentImage) currentData.imagem = currentImage;
+    
+    // NOVO: Salvando a etiqueta do Dono na obra
+    currentData.dono = sessionStorage.getItem('blocok_usuario') || 'admin';
+    
     try { await db.collection("obras").doc(nome).set(currentData); alert(`Salvo!`); atualizarSelectProjetosNuvem(); } catch (error) { alert("Erro ao salvar."); } finally { btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false; }
 };
+
 document.getElementById('btnCarregarProjeto').onclick = async () => {
-    if(!db) return; let nome = document.getElementById('selectProjetos').value; if(!nome) return alert("Selecione.");
+    if(!db) return; 
+    let selectVal = document.getElementById('selectProjetos').value; 
+    if(!selectVal) return alert("Selecione.");
+    // Remover o nome do dono caso o admin tenha selecionado (ex: "Casa (carlos)" -> "Casa")
+    let nomeReal = selectVal.split(' (')[0];
+
     if(confirm("Substituir área atual?")) {
         let btn = document.getElementById('btnCarregarProjeto'); btn.innerText = "⏳...";
-        try { const docRef = await db.collection("obras").doc(nome).get(); if (docRef.exists) { let dados = docRef.data(); if (dados.imagem) { localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem; } else localStorage.removeItem('blocokImage'); localStorage.setItem('blocokData', JSON.stringify(dados)); location.reload(); } else alert("Não encontrada."); } catch(error) { alert("Erro."); } finally { btn.innerText = "📂 Abrir"; }
+        try { const docRef = await db.collection("obras").doc(nomeReal).get(); if (docRef.exists) { let dados = docRef.data(); if (dados.imagem) { localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem; } else localStorage.removeItem('blocokImage'); localStorage.setItem('blocokData', JSON.stringify(dados)); location.reload(); } else alert("Não encontrada."); } catch(error) { alert("Erro."); } finally { btn.innerText = "📂 Abrir"; }
     }
 };
-document.getElementById('btnExcluirProjeto').onclick = async () => { if(!db) return; let nome = document.getElementById('selectProjetos').value; if(!nome) return alert("Selecione."); if(confirm(`APAGAR '${nome}'?`)) { try { await db.collection("obras").doc(nome).delete(); alert("Excluída."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } } };
+
+document.getElementById('btnExcluirProjeto').onclick = async () => { 
+    if(!db) return; 
+    let selectVal = document.getElementById('selectProjetos').value; 
+    if(!selectVal) return alert("Selecione."); 
+    let nomeReal = selectVal.split(' (')[0];
+    
+    if(confirm(`APAGAR '${nomeReal}'?`)) { try { await db.collection("obras").doc(nomeReal).delete(); alert("Excluída."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } } 
+};
 document.getElementById('btnLimpar').onclick = () => { if(confirm("Apagar Área?")) { localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage'); location.reload(); } };
 document.querySelectorAll('.save-state').forEach(i => { i.addEventListener('change', salvarEstadoLocal); i.addEventListener('input', salvarEstadoLocal); });
 const chkInsumos = document.getElementById('chkInsumos'); const painelInsumos = document.getElementById('painelInsumos'); chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstadoLocal(); });
@@ -246,9 +303,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         totalAreaBruta += areaBrutaParede; totalAreaLiquida += areaLiquidaParede;
     });
 
-    // ==========================================
-    // PARTE 1: PDF DA PROPOSTA COMERCIAL (COM PREÇOS)
-    // ==========================================
     let html = `
     <div id="pdfContent" style="padding: 30px; font-family: Arial, sans-serif; position: relative; overflow: hidden; background: white; color: black; min-height: 800px;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 140px; color: rgba(0, 0, 0, 0.04); font-weight: 900; letter-spacing: 15px; z-index: 0; pointer-events: none;">BLOCOK</div>
@@ -261,7 +315,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <h3 style="color: #2c3e50;">1. Quantitativo de Painéis (${pag.toUpperCase()})</h3>
             <table class="pdf-table"><tr><th>Espessura</th><th>Área Bruta</th><th>Descontos</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th></tr>`;
 
-    let linhasRomaneioBlocos = ''; // Variável para montar o Romaneio depois
+    let linhasRomaneioBlocos = ''; 
     let iBloco = 1;
 
     for (let esp in resumoParedes) {
@@ -269,14 +323,11 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let qtd = Math.ceil(d.liquida / 0.81); let preco = precosBlocok[esp][pag] * qtd;
         valorTotalBlocos += preco;
         html += `<tr><td><strong>${esp} cm</strong></td><td>${d.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${d.vaos.toFixed(2)} m²</td><td style="color:#27ae60; font-weight:bold;">${d.liquida.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
-        
-        // Alimenta o Romaneio
         linhasRomaneioBlocos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">${iBloco++}</td><td style="border: 1px solid #000; padding: 8px;">Painel BLOCOK de ${esp} cm</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${qtd} peças</strong></td></tr>`;
     }
     html += `</table>`;
 
-    let valorTotalInsumos = 0;
-    let linhasRomaneioInsumos = ''; // Variável para o Romaneio
+    let valorTotalInsumos = 0; let linhasRomaneioInsumos = ''; 
     
     if (incluirInsumos) {
         let sacos = Math.ceil(totalAreaLiquida / 10), tubos = Math.ceil(totalAreaLiquida / 3), rolos = Math.ceil((totalAreaLiquida * 2.2) / 50);
@@ -287,8 +338,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <tr><td>Argamassa (20kg)</td><td>${sacos} scs</td><td>R$ ${pArg.toFixed(2)}</td><td>R$ ${(sacos*pArg).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
             <tr><td>Espuma PU (500ml)</td><td>${tubos} un.</td><td>R$ ${pPU.toFixed(2)}</td><td>R$ ${(tubos*pPU).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
             <tr><td>Tela Fibra (50m)</td><td>${rolos} rls</td><td>R$ ${pTela.toFixed(2)}</td><td>R$ ${(rolos*pTela).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr></table>`;
-            
-        // Alimenta o Romaneio
         linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Argamassa Polimérica (Saco 20kg)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${sacos} sacos</strong></td></tr>`;
         linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Espuma Expansiva PU (Tubo 500ml)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${tubos} tubos</strong></td></tr>`;
         linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Tela de Fibra de Vidro (Rolo 50m)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${rolos} rolos</strong></td></tr>`;
@@ -322,8 +371,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     if (incluirComparativo) {
         let totalConvPronto = totalAreaLiquida * parseFloat(document.getElementById('custoConvPronto').value || 0);
         let totalBlocokPronto = subtotalObra + (totalAreaLiquida * parseFloat(document.getElementById('custoBlocokMO').value || 0));
-        economiaReais = totalConvPronto - totalBlocokPronto;
-        let numeracao = incluirCronograma ? "4" : "3";
+        economiaReais = totalConvPronto - totalBlocokPronto; let numeracao = incluirCronograma ? "4" : "3";
         html += `<h3 style="color:#2c3e50; margin-top:25px;">${numeracao}. Análise de Viabilidade Financeira</h3>
             <div class="box-comparativo">
             <h4 style="margin: 0 0 10px 0; color: #555;">Parede Pronta (Material + Mão de Obra)</h4>
@@ -334,10 +382,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     html += `<p style="font-size:10px; text-align:center; margin-top:20px; color: #95a5a6;">* Documento gerado digitalmente pelo BLOCOK OS.</p></div>`;
 
-
-    // ==========================================
-    // PARTE 2: HTML INVISÍVEL DO ROMANEIO (SEM PREÇOS)
-    // ==========================================
+    // PARTE 2: ROMANEIO
     let htmlRomaneio = `
     <div id="pdfRomaneioContent" style="display:none;">
         <div style="padding: 40px; font-family: Arial, sans-serif; background: white; color: black; width: 100%; min-height: 800px;">
@@ -346,48 +391,27 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
                 <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
                 <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total Const.:</strong> ${totalAreaLiquida.toFixed(2)} m²</p>
             </div>
-
             <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">1. Separação de Painéis BLOCOK</h3>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                <tr style="background: #eee;">
-                    <th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th>
-                    <th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th>
-                    <th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th>
-                </tr>
+                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th></tr>
                 ${linhasRomaneioBlocos}
             </table>`;
-
     if (incluirInsumos) {
         htmlRomaneio += `
             <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">2. Separação de Insumos</h3>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                <tr style="background: #eee;">
-                    <th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th>
-                    <th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th>
-                    <th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th>
-                </tr>
+                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th></tr>
                 ${linhasRomaneioInsumos}
             </table>`;
     }
-
     htmlRomaneio += `
-            <div style="margin-top: 80px; text-align: center; font-size: 14px;">
-                <p>____________________________________________________________</p>
-                <p>Assinatura do Responsável pela Separação / Expedição</p>
-            </div>
-            <div style="margin-top: 60px; text-align: center; font-size: 14px;">
-                <p>____________________________________________________________</p>
-                <p>Assinatura do Motorista / Conferente da Carga</p>
-            </div>
+            <div style="margin-top: 80px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura do Responsável pela Separação / Expedição</p></div>
+            <div style="margin-top: 60px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura do Motorista / Conferente da Carga</p></div>
             <p style="font-size:10px; text-align:center; margin-top:40px; color: #555;">Documento de uso interno. Valores omitidos por segurança.</p>
         </div>
     </div>`;
 
-
-    // ==========================================
-    // PARTE 3: INJEÇÃO DOS BOTÕES NA TELA
-    // ==========================================
-    html += htmlRomaneio; // Adiciona o Romaneio invisível ao final do pacote
+    html += htmlRomaneio;
 
     html += `</div>
     <div style="display:flex; gap:10px; margin-top:20px; flex-wrap: wrap;">
@@ -398,24 +422,18 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     const caixa = document.getElementById('caixaResultado'); caixa.innerHTML = html; caixa.style.display = 'block';
 
-    // Ação do PDF da Proposta Comercial (Com preço)
     document.getElementById('downloadPdf').onclick = () => {
         const btn = document.getElementById('downloadPdf'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#94a3b8";
         html2pdf().set({ margin:0, filename:`Proposta_BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(document.getElementById('pdfContent')).save().then(() => {
-            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#ef4444";
-            setTimeout(() => { btn.innerText = "📄 PROPOSTA (PDF)"; }, 3000);
+            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#ef4444"; setTimeout(() => { btn.innerText = "📄 PROPOSTA (PDF)"; }, 3000);
         });
     };
 
-    // Ação do PDF do Romaneio (Sem Preço, Preto e Branco)
     document.getElementById('downloadRomaneio').onclick = () => {
         const btn = document.getElementById('downloadRomaneio'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#94a3b8";
-        // Pega apenas a div invisível do Romaneio
         const elementoRomaneio = document.getElementById('pdfRomaneioContent').children[0];
-        
         html2pdf().set({ margin:0, filename:`Romaneio_Carga_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(elementoRomaneio).save().then(() => {
-            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#475569";
-            setTimeout(() => { btn.innerText = "🏭 ROMANEIO FÁBRICA"; }, 3000);
+            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#475569"; setTimeout(() => { btn.innerText = "🏭 ROMANEIO FÁBRICA"; }, 3000);
         });
     };
 
@@ -425,7 +443,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         if(descontoPct > 0) { texto += `📉 *Desconto:* - R$ ${valorDescontoReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`; }
         if(frete > 0) { texto += `🚚 *Frete:* + R$ ${frete.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`; }
         texto += `\n💲 *TOTAL A PAGAR:* R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n\n`;
-        
         if(incluirCronograma && diasEstimados > 0) { texto += `⏱️ *Tempo de Montagem:* Apenas ${diasEstimados} dia(s) útil(eis)!\n`; }
         if(economiaReais > 0) texto += `✅ *Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})} em relação à alvenaria pronta!\n`;
         texto += `\nEstou enviando o *PDF detalhado* a seguir!`;
