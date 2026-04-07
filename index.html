@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLOCOK System | Acesso Restrito</title>
-    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="stylesheet" href="style.css?v=10">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -116,7 +116,7 @@
 
                     <div style="border-top: 1px dashed #334155; margin-top: 25px; padding-top: 15px; background: #0c111a; padding: 15px; border-radius: 8px; border-left: 5px solid #3b82f6;">
                         <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #3b82f6;">🎨 LOGO E IDENTIDADE VISUAL NO PDF</label>
-                        <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Defina a marca que aparecerá no topo dos orçamentos gerados por você e sua equipe.</p>
+                        <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Defina a marca que aparecerá no orçamentos gerados por você e sua equipe.</p>
                         
                         <div style="display: flex; gap: 15px; align-items: flex-start;">
                             <div style="flex: 1;">
@@ -230,7 +230,7 @@
                             <input type="number" id="custoConvPronto" class="input-tech-small save-state" step="0.01" value="250.00">
                         </div>
                         <div class="form-group-inline">
-                            <label>BLOCOK (Mont. + Acabamento/m²): R$</label>
+                            <label>Seu Sistema (Mont. MO/m²): R$</label>
                             <input type="number" id="custoBlocokMO" class="input-tech-small save-state" step="0.01" value="65.00">
                         </div>
                     </div>
@@ -272,27 +272,4 @@
                         </select>
                     </div>
 
-                    <div class="form-group-inline" style="margin-top: 10px; border-top: 1px solid #334155; padding-top: 15px;">
-                        <div style="flex: 1; padding-right: 5px;">
-                            <label style="display:block; margin-bottom:5px; font-size: 12px; color: #10b981;">Frete / Entrega (R$):</label>
-                            <input type="number" id="valorFrete" class="input-tech save-state" step="0.01" placeholder="0.00">
-                        </div>
-                        <div style="flex: 1; padding-left: 5px;">
-                            <label style="display:block; margin-bottom:5px; font-size: 12px; color: #ef4444;">Desconto Comercial (%):</label>
-                            <input type="number" id="valorDesconto" class="input-tech save-state" step="0.1" placeholder="0.0">
-                        </div>
-                    </div>
-
-                    <button type="submit" class="btn-tech-run" style="margin-top: 15px;">🚀 GERAR PROPOSTA</button>
-                </form>
-
-                <div id="caixaResultado" class="resultado-box" style="display: none;"></div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="script.js"></script>
-</body>
-</html>
+                    <div class="form-group-inline" style="margin-top: 10px; border-top: 1px solid #3341
