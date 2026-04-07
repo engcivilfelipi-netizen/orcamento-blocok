@@ -1,8 +1,8 @@
 // ==========================================
-// 🔒 INICIALIZAÇÃO FIREBASE
+// 🔒 INICIALIZAÇÃO FIREBASE E VARIÁVEIS
 // ==========================================
 let db, auth;
-let precosBlocok = { "10":{avista:100,prazo:110}, "15":{avista:120,prazo:130}, descontoMaximo: 5 };
+let precosBlocok = { "10":{avista:0,prazo:0}, "13":{avista:0,prazo:0}, "15":{avista:0,prazo:0}, "20":{avista:0,prazo:0}, descontoMaximo: 5 };
 let configVisualNuvem = { logo: null, cor: "#ff6b00", tamanho: 70 };
 let paredesMedidas = [];
 let pixelsPorMetro = 0;
@@ -40,7 +40,7 @@ auth.onAuthStateChanged(user => {
         document.getElementById('painelAdmin').style.display = isAdmin ? 'block' : 'none';
         
         if(!isAdmin) {
-            ['precoArgamassa', 'precoPU', 'custoConvPronto', 'custoBlocokMO', 'produtividadeDiaria'].forEach(id => {
+            ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvPronto', 'custoBlocokMO', 'produtividadeDiaria'].forEach(id => {
                 let el = document.getElementById(id); if(el) { el.disabled = true; el.style.backgroundColor = "#1e293b"; }
             });
         }
@@ -59,20 +59,22 @@ document.getElementById('btnLogin').onclick = async () => {
     const email = document.getElementById('userInput').value.trim();
     const pass = document.getElementById('passInput').value;
     try { await auth.signInWithEmailAndPassword(email, pass); } 
-    catch (e) { alert("Acesso negado."); }
+    catch (e) { document.getElementById('loginError').style.display = 'block'; }
 };
 document.getElementById('btnLogout').onclick = () => auth.signOut();
 
 // ==========================================
-// ⚙️ GESTÃO DE NUVEM
+// ⚙️ GESTÃO DE NUVEM (PREÇOS E VISUAL)
 // ==========================================
 async function carregarPrecosDaNuvem() {
     const doc = await db.collection("configuracoes").doc("precosGlobais").get();
     if (doc.exists) {
         precosBlocok = doc.data();
         if(auth.currentUser.email === 'admin@blocok.com') {
-            document.getElementById('p10v').value = precosBlocok["10"].avista;
-            document.getElementById('p15v').value = precosBlocok["15"].avista;
+            document.getElementById('p10v').value = precosBlocok["10"].avista; document.getElementById('p10p').value = precosBlocok["10"].prazo;
+            document.getElementById('p13v').value = precosBlocok["13"].avista; document.getElementById('p13p').value = precosBlocok["13"].prazo;
+            document.getElementById('p15v').value = precosBlocok["15"].avista; document.getElementById('p15p').value = precosBlocok["15"].prazo;
+            document.getElementById('p20v').value = precosBlocok["20"].avista; document.getElementById('p20p').value = precosBlocok["20"].prazo;
             document.getElementById('descontoMax').value = precosBlocok.descontoMaximo || 5;
         }
     }
@@ -80,17 +82,22 @@ async function carregarPrecosDaNuvem() {
 
 document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
     const novos = {
-        "10": { avista: parseFloat(document.getElementById('p10v').value), prazo: parseFloat(document.getElementById('p10v').value * 1.1) },
-        "15": { avista: parseFloat(document.getElementById('p15v').value), prazo: parseFloat(document.getElementById('p15v').value * 1.1) },
+        "10": { avista: parseFloat(document.getElementById('p10v').value), prazo: parseFloat(document.getElementById('p10p').value) },
+        "13": { avista: parseFloat(document.getElementById('p13v').value), prazo: parseFloat(document.getElementById('p13p').value) },
+        "15": { avista: parseFloat(document.getElementById('p15v').value), prazo: parseFloat(document.getElementById('p15p').value) },
+        "20": { avista: parseFloat(document.getElementById('p20v').value), prazo: parseFloat(document.getElementById('p20p').value) },
         "descontoMaximo": parseFloat(document.getElementById('descontoMax').value)
     };
     await db.collection("configuracoes").doc("precosGlobais").set(novos);
-    precosBlocok = novos; alert("Configurações de Preço Salvas!");
+    precosBlocok = novos; alert("Configurações Salvas!");
 };
 
 async function carregarIdentidadeVisualDaNuvem() {
     const doc = await db.collection("configuracoes").doc("identidadeVisual").get();
-    if (doc.exists) configVisualNuvem = doc.data();
+    if (doc.exists) {
+        configVisualNuvem = doc.data();
+        document.getElementById('inputCorDestaque').value = configVisualNuvem.cor;
+    }
 }
 
 document.getElementById('uploadLogoEmpresa').onchange = (e) => {
@@ -104,6 +111,7 @@ document.getElementById('uploadLogoEmpresa').onchange = (e) => {
             canvasBox.width = img.width * scale; canvasBox.height = img.height * scale;
             canvasBox.getContext('2d').drawImage(img, 0, 0, canvasBox.width, canvasBox.height);
             configVisualNuvem.logo = canvasBox.toDataURL('image/jpeg', 0.8);
+            alert("Logo carregada! Lembre-se de clicar em Salvar Visual.");
         };
         img.src = ev.target.result;
     };
@@ -160,27 +168,28 @@ document.getElementById('btnAdicionarManual').onclick = () => {
 function renderizarTabela() {
     const t = document.getElementById('corpoTabela'); t.innerHTML = "";
     paredesMedidas.forEach((p, i) => {
-        t.innerHTML += `<tr><td>${i+1}</td><td>${p.comp.toFixed(2)}m</td><td>${p.esp}cm</td><td><button onclick="removerP(${i})">X</button></td></tr>`;
+        t.innerHTML += `<tr><td>${i+1}</td><td>${p.comp.toFixed(2)}m</td><td>${p.esp}cm</td><td><button class="btn-tech-danger" onclick="removerP(${i})">X</button></td></tr>`;
     });
 }
 window.removerP = (i) => { paredesMedidas.splice(i, 1); renderizarTabela(); };
 
 // ==========================================
-// 🚀 GERAÇÃO DE PROPOSTA E ROMANEIO
+// 🚀 GERAÇÃO DE PROPOSTA (O CÓDIGO RICO DE VOLTA!)
 // ==========================================
 document.getElementById('formCalculadora').onsubmit = (e) => {
     e.preventDefault();
-    if(paredesMedidas.length === 0) return alert("Nenhuma parede medida.");
+    if(paredesMedidas.length === 0) return alert("Meça as paredes primeiro.");
 
     const isAdmin = (auth.currentUser.email === 'admin@blocok.com');
     let descPct = parseFloat(document.getElementById('valorDesconto').value || 0);
     if (!isAdmin && descPct > precosBlocok.descontoMaximo) {
-        alert(`❌ Erro: O desconto máximo permitido é de ${precosBlocok.descontoMaximo}%!`);
+        alert(`❌ O desconto máximo permitido é de ${precosBlocok.descontoMaximo}%! Valor corrigido automaticamente.`);
         document.getElementById('valorDesconto').value = precosBlocok.descontoMaximo;
         descPct = precosBlocok.descontoMaximo;
     }
 
     let nome = document.getElementById('nomeProjetoAtivo').value || "CLIENTE";
+    let telefone = document.getElementById('whatsappCliente').value.replace(/\D/g, '');
     let h = parseFloat(document.getElementById('alturaGlobal').value);
     let pag = document.getElementById('formaPagamento').value;
     let cor = configVisualNuvem.cor;
@@ -192,99 +201,129 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         if(!resumo[p.esp]) resumo[p.esp] = 0; resumo[p.esp] += m2; 
     });
 
-    // --- PDF PROPOSTA ---
-    let htmlPdf = `
-    <div id="pdfContent" style="padding: 30px; font-family: Arial; background: white; color: black; min-height: 800px;">
-        <table style="width:100%; border:none;"><tr><td style="border:none;"></td><td style="text-align:right; border:none;">
-            ${configVisualNuvem.logo ? `<img src="${configVisualNuvem.logo}" style="max-height:70px;">` : ''}
-        </td></tr></table>
-        <div style="border-bottom: 3px solid ${cor}; margin-bottom: 20px;"><h1 style="margin:0; font-size:22px;">PROPOSTA COMERCIAL</h1><p>Obra: ${nome.toUpperCase()} | Data: ${new Date().toLocaleDateString()}</p></div>
-        
-        <h3 style="color:${cor}; font-size:14px;">1. Painéis Construtivos (${pag.toUpperCase()})</h3>
-        <table style="width:100%; border-collapse:collapse; font-size:12px; margin-bottom:20px;">
-            <tr style="background:${cor}; color:white;"><th>Espessura</th><th>Área</th><th>Qtd</th><th>Subtotal</th></tr>`;
+    let tagLogoPdf = configVisualNuvem.logo ? `<img src="${configVisualNuvem.logo}" style="max-height: 80px; max-width: ${configVisualNuvem.tamanho}%; display: block;">` : '';
 
-    let totalProdutos = 0;
-    let romaneioRows = '';
+    // --- HTML DO PDF PRINCIPAL ---
+    let htmlPdf = `
+    <div id="pdfContent" style="padding: 30px; font-family: Arial, sans-serif; position: relative; overflow: hidden; background: white; color: black; min-height: 800px;">
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: none;">
+            <tr><td style="width: 50%; border: none;"></td><td style="width: 50%; text-align: right; vertical-align: middle; border: none; padding-bottom: 10px;">${tagLogoPdf}</td></tr>
+        </table>
+
+        <div style="border-bottom: 3px solid ${cor}; padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 style="color: #2c3e50; margin: 0 0 5px 0; font-size: 24px;">PROPOSTA COMERCIAL</h1>
+            <p style="margin: 0; font-size: 14px;"><strong>Cliente / Obra:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+        </div>
+        
+        <h3 style="color: #2c3e50; margin-top: 20px; font-size: 16px;">1. Quantitativo de Painéis Estruturais (${pag.toUpperCase()})</h3>
+        <table class="pdf-table" style="font-size: 13px;">
+            <tr style="background: ${cor}; color: #fff;"><th>Espessura</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th></tr>`;
+
+    let totalProdutos = 0; let romaneioRows = '';
     for(let esp in resumo) {
         let m2 = resumo[esp]; let qtd = Math.ceil(m2 / 0.81);
-        let precoUnit = precosBlocok[esp] ? precosBlocok[esp][pag] : 100;
+        let precoUnit = precosBlocok[esp] ? precosBlocok[esp][pag] : 0;
         let sub = qtd * precoUnit; totalProdutos += sub;
-        htmlPdf += `<tr><td style="border:1px solid #ccc; padding:5px;">${esp} cm</td><td style="border:1px solid #ccc; padding:5px;">${m2.toFixed(2)} m²</td><td style="border:1px solid #ccc; padding:5px;">${qtd} un</td><td style="border:1px solid #ccc; padding:5px;">R$ ${sub.toLocaleString()}</td></tr>`;
-        romaneioRows += `<tr><td style="border:1px solid #000; padding:5px;">Painel ${esp}cm</td><td style="border:1px solid #000; padding:5px; text-align:center;">${qtd} un</td></tr>`;
+        htmlPdf += `<tr><td><strong>${esp} cm</strong></td><td>${m2.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${sub.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
+        romaneioRows += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">Painel BLOCOK ${esp} cm</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${qtd} peças</strong></td></tr>`;
     }
     htmlPdf += `</table>`;
 
     if(document.getElementById('chkInsumos').checked) {
-        let pArg = parseFloat(document.getElementById('precoArgamassa').value);
-        let sacos = Math.ceil(totalM2 / 10);
-        let valInsumo = sacos * pArg; totalProdutos += valInsumo;
-        htmlPdf += `<h3 style="color:${cor}; font-size:14px;">2. Materiais de Instalação</h3>
-        <p style="font-size:11px;">Itens básicos para montagem de ${totalM2.toFixed(2)}m².</p>
-        <table style="width:100%; font-size:12px;"><tr><td>Argamassa: ${sacos} sacos</td><td>R$ ${valInsumo.toLocaleString()}</td></tr></table>`;
+        let sacos = Math.ceil(totalM2 / 10), tubos = Math.ceil(totalM2 / 3), rolos = Math.ceil((totalM2 * 2.2) / 50);
+        let pArg = parseFloat(document.getElementById('precoArgamassa').value || 0), pPU = parseFloat(document.getElementById('precoPU').value || 0), pTela = parseFloat(document.getElementById('precoTela').value || 0);
+        totalProdutos += (sacos * pArg) + (tubos * pPU) + (rolos * pTela);
+        htmlPdf += `<h3 style="color: #2c3e50; margin-top: 20px; font-size: 16px;">2. Materiais de Instalação</h3>
+            <table class="pdf-table" style="font-size: 13px;">
+                <tr style="background: ${cor}; color: #fff;"><th>Insumo</th><th>Qtd.</th><th>Valor Unit.</th><th>Subtotal</th></tr>
+                <tr><td>Argamassa (20kg)</td><td>${sacos} scs</td><td>R$ ${pArg.toFixed(2)}</td><td>R$ ${(sacos*pArg).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
+                <tr><td>Espuma PU (500ml)</td><td>${tubos} un.</td><td>R$ ${pPU.toFixed(2)}</td><td>R$ ${(tubos*pPU).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
+                <tr><td>Tela Fibra (50m)</td><td>${rolos} rls</td><td>R$ ${pTela.toFixed(2)}</td><td>R$ ${(rolos*pTela).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
+            </table>`;
+        romaneioRows += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">Argamassa (20kg)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${sacos} sacos</strong></td></tr>`;
+        romaneioRows += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">Espuma PU (500ml)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${tubos} tubos</strong></td></tr>`;
+        romaneioRows += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">Tela Fibra (50m)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${rolos} rolos</strong></td></tr>`;
     }
 
     let valDesc = totalProdutos * (descPct/100);
     let totalFinal = totalProdutos - valDesc + frete;
 
-    htmlPdf += `
-        <div style="margin-top:20px; padding:15px; background:#f9f9f9; border-radius:8px; font-size:14px;">
-            <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span><b>R$ ${totalProdutos.toLocaleString()}</b></div>
-            ${descPct > 0 ? `<div style="display:flex; justify-content:space-between; color:red;"><span>Desconto (${descPct}%):</span><b>- R$ ${valDesc.toLocaleString()}</b></div>` : ''}
-            ${frete > 0 ? `<div style="display:flex; justify-content:space-between; color:blue;"><span>Frete:</span><b>+ R$ ${frete.toLocaleString()}</b></div>` : ''}
-            <div style="display:flex; justify-content:space-between; font-size:18px; margin-top:10px; border-top:2px solid #ccc; padding-top:10px;">
-                <strong>TOTAL:</strong><strong style="color:${cor};">R$ ${totalFinal.toLocaleString()}</strong>
-            </div>
-        </div>`;
+    htmlPdf += `<div class="resumo-financeiro" style="font-size: 14px;">
+        <div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px;"><span>Subtotal:</span><strong>R$ ${totalProdutos.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
+    if (descPct > 0) htmlPdf += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #ef4444;"><span>Desconto (${descPct}%):</span><strong>- R$ ${valDesc.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
+    if (frete > 0) htmlPdf += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #3b82f6;"><span>Frete:</span><strong>+ R$ ${frete.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
+    htmlPdf += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#2c3e50; margin-top:10px;"><strong>TOTAL A PAGAR:</strong><strong style="color:${cor};">R$ ${totalFinal.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div></div>`;
 
     if(document.getElementById('chkCronograma').checked) {
         let dias = Math.ceil(totalM2 / parseFloat(document.getElementById('produtividadeDiaria').value));
-        htmlPdf += `<div style="margin-top:20px; padding:10px; border-left:5px solid ${cor}; background:#f0f0f0;">
-            <b>Prazo Estimado:</b> ${dias} dia(s) útil(eis) para montagem das paredes.
-        </div>`;
+        htmlPdf += `<h3 style="color: #2c3e50; margin-top: 25px; font-size: 16px;">3. Cronograma Estimado de Montagem</h3>
+            <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 6px; border-left: 5px solid ${cor};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 14px; font-weight: bold;">Tempo estimado de montagem:</span>
+                    <strong style="font-size: 18px; color: ${cor}; padding: 5px 15px; border-radius: 4px;">${dias} dia(s) útil(eis)</strong>
+                </div>
+            </div>`;
     }
 
     if(document.getElementById('chkComparativo').checked) {
-        let conv = totalM2 * parseFloat(document.getElementById('custoConvPronto').value);
-        let seu = totalFinal + (totalM2 * parseFloat(document.getElementById('custoBlocokMO').value));
-        let econo = conv - seu;
-        htmlPdf += `<h3 style="color:${cor}; margin-top:20px;">Análise de Viabilidade</h3>
-        <p style="font-size:12px;">Convencional: R$ ${conv.toLocaleString()} | <b>Seu Sistema: R$ ${seu.toLocaleString()}</b></p>
-        <div style="background:#e8f5e9; padding:10px; color:#2e7d32; font-weight:bold;">Economia Gerada: R$ ${econo.toLocaleString()}</div>`;
+        let conv = totalM2 * parseFloat(document.getElementById('custoConvPronto').value || 0);
+        let seu = totalFinal + (totalM2 * parseFloat(document.getElementById('custoBlocokMO').value || 0));
+        let econo = conv - seu; let num = document.getElementById('chkCronograma').checked ? "4" : "3";
+        
+        htmlPdf += `<h3 style="color:#2c3e50; margin-top:25px; font-size: 16px;">${num}. Análise de Viabilidade Financeira</h3>
+            <div class="box-comparativo" style="font-size: 13px;">
+            <h4 style="margin: 0 0 10px 0; color: #555; font-size: 14px;">Parede Pronta (Material + Mão de Obra)</h4>
+            <div class="grafico-linha"><span class="lbl-grafico">Convencional</span><div class="barra-bg"><div class="barra-fill-bad" style="width: 100%;">&nbsp;</div></div><span class="val-grafico" style="color:#e74c3c;">R$ ${conv.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
+            <div class="grafico-linha"><span class="lbl-grafico">Seu Sistema</span><div class="barra-bg"><div class="barra-fill-good" style="background: ${cor}; width: ${(seu/conv)*100}%;">&nbsp;</div></div><span class="val-grafico" style="color:${cor};">R$ ${seu.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
+            <div style="text-align:center; margin-top:15px; padding:10px; color:${cor}; font-weight:bold; border-radius: 4px; border: 1px dashed ${cor}; font-size: 14px;">Economia Estimada: R$ ${econo > 0 ? econo.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
     }
 
-    htmlPdf += `<p style="font-size:10px; text-align:center; margin-top:30px;">* Proposta gerada via BLOCOK OS.</p></div>`;
+    htmlPdf += `<p style="font-size:10px; text-align:center; margin-top:30px; color: #95a5a6;">* Documento gerado digitalmente.</p></div>`;
 
-    // --- ROMANEIO ---
-    let htmlRomaneio = `<div id="pdfRomaneio" style="padding:40px; background:white; color:black;">
-        <h2 style="text-align:center; border-bottom:2px solid #000;">ROMANEIO DE CARGA</h2>
-        <p>Obra: ${nome.toUpperCase()} | Data: ${new Date().toLocaleDateString()}</p>
-        <table style="width:100%; border-collapse:collapse; margin-top:20px;">
-            <tr style="background:#ddd;"><th>Item</th><th>Quantidade</th></tr>
-            ${romaneioRows}
-        </table>
-        <div style="margin-top:50px; text-align:center;"><p>_________________________</p><p>Assinatura Conferente</p></div>
+    // --- HTML DO ROMANEIO (A MÁGICA DE POSIÇÃO ABSOLUTA) ---
+    // O html2pdf não captura 'display:none', então jogamos ele para fora da tela (left: -9999px)
+    let htmlRomaneio = `
+    <div id="pdfRomaneioContainer" style="position: absolute; left: -9999px; top: 0; width: 800px;">
+        <div id="pdfRomaneio" style="padding: 40px; font-family: Arial, sans-serif; background: white; color: black; width: 100%; min-height: 800px;">
+            <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
+                <h1 style="margin: 0 0 5px 0; font-size: 22px; text-transform: uppercase;">ORDEM DE SEPARAÇÃO E CARGA (ROMANEIO)</h1>
+                <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
+                <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total:</strong> ${totalM2.toFixed(2)} m²</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; text-align: left;">Descrição do Item</th><th style="border: 1px solid #000; padding: 8px;">Quantidade para Carga</th></tr>
+                ${romaneioRows}
+            </table>
+            <div style="margin-top: 80px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura Expedição / Motorista</p></div>
+        </div>
     </div>`;
 
     const caixa = document.getElementById('caixaResultado');
-    caixa.innerHTML = htmlPdf + `<div style="display:flex; gap:10px; margin-top:20px;">
-        <button id="btnPdf" style="flex:1; padding:15px; background:${cor}; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">📄 BAIXAR PROPOSTA</button>
-        <button id="btnRom" style="flex:1; padding:15px; background:#475569; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">🏭 ROMANEIO</button>
-    </div>` + `<div id="hiddenRom" style="display:none;">${htmlRomaneio}</div>`;
+    caixa.innerHTML = htmlPdf + htmlRomaneio + `
+    <div style="display:flex; gap:10px; margin-top:20px; flex-wrap: wrap; position: relative; z-index: 10;">
+        <button id="btnPdf" style="flex:1; min-width: 150px; padding:15px; background:${cor}; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">📄 BAIXAR PROPOSTA</button>
+        <button id="btnZap" style="flex:1; min-width: 150px; padding:15px; background:#10b981; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">💬 MANDAR NO ZAP</button>
+        <button id="btnRom" style="flex:1; min-width: 150px; padding:15px; background:#475569; color:white; border:none; font-weight:bold; border-radius:6px; cursor:pointer;">🏭 ROMANEIO</button>
+    </div>`;
     caixa.style.display = 'block';
 
-    document.getElementById('btnPdf').onclick = () => html2pdf().set({margin:0, filename:`Proposta_${nome}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'}}).from(document.getElementById('pdfContent')).save();
-    document.getElementById('btnRom').onclick = () => html2pdf().set({margin:0, filename:`Romaneio_${nome}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'}}).from(document.getElementById('pdfRomaneio')).save();
+    document.getElementById('btnPdf').onclick = () => { html2pdf().set({margin:0, filename:`Proposta_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'}}).from(document.getElementById('pdfContent')).save(); };
+    document.getElementById('btnRom').onclick = () => { html2pdf().set({margin:0, filename:`Romaneio_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2}, jsPDF:{format:'a4'}}).from(document.getElementById('pdfRomaneio')).save(); };
+    document.getElementById('btnZap').onclick = () => {
+        if(!telefone) return alert("Preencha o WhatsApp do cliente.");
+        let t = `*PROPOSTA COMERCIAL* 🧱\n\nOlá, *${nome.toUpperCase()}*!\n\n📏 *Área Total:* ${totalM2.toFixed(2)} m²\n💰 *TOTAL A PAGAR:* R$ ${totalFinal.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n\nEstou enviando o *PDF detalhado*!`;
+        window.open(`https://api.whatsapp.com/send?phone=55${telefone}&text=${encodeURIComponent(t)}`, '_blank');
+    };
 };
 
 // ==========================================
-// ☁️ GERENCIAMENTO E FILTROS
+// ☁️ GERENCIAMENTO E FILTROS (NUVEM E SESSÃO)
 // ==========================================
 async function atualizarSelectProjetos() {
     const user = auth.currentUser;
     const snap = (user.email === 'admin@blocok.com') ? await db.collection("obras").get() : await db.collection("obras").where("dono", "==", user.email).get();
     const select = document.getElementById('selectProjetos');
-    select.innerHTML = '<option value="">-- Selecione --</option>';
+    select.innerHTML = '<option value="">-- Selecione Obra --</option>';
     snap.forEach(doc => { select.innerHTML += `<option value="${doc.id}">${doc.id}</option>`; });
 }
 
@@ -292,13 +331,31 @@ document.getElementById('btnSalvarProjeto').onclick = async () => {
     const nome = document.getElementById('nomeProjetoAtivo').value;
     if(!nome) return alert("Dê um nome à obra.");
     await db.collection("obras").doc(nome).set({ paredes: paredesMedidas, dono: auth.currentUser.email, data: new Date().toISOString() });
-    alert("Obra na Nuvem!"); atualizarSelectProjetos();
+    alert("Obra Salva na Nuvem!"); atualizarSelectProjetos();
 };
 
 document.getElementById('btnCarregarProjeto').onclick = async () => {
     const nome = document.getElementById('selectProjetos').value;
+    if(!nome) return alert("Selecione uma obra.");
     const doc = await db.collection("obras").doc(nome).get();
-    if(doc.exists) { paredesMedidas = doc.data().paredes; renderizarTabela(); alert("Obra Carregada!"); }
+    if(doc.exists) { paredesMedidas = doc.data().paredes || []; renderizarTabela(); alert("Obra Carregada com Sucesso!"); }
 };
 
-function carregarEstadoLocal() { /* Função para carregar rascunhos do navegador */ }
+document.getElementById('btnExcluirProjeto').onclick = async () => {
+    const nome = document.getElementById('selectProjetos').value;
+    if(!nome) return alert("Selecione uma obra.");
+    if(confirm(`Apagar '${nome}' da nuvem?`)) {
+        await db.collection("obras").doc(nome).delete(); alert("Apagada!"); atualizarSelectProjetos();
+    }
+};
+
+document.getElementById('btnLimpar').onclick = () => { if(confirm("Limpar tela?")) { paredesMedidas = []; renderizarTabela(); } };
+
+// Salvar/Carregar Rascunho Temporário (Local)
+document.querySelectorAll('.save-state').forEach(i => { i.addEventListener('change', salvarEstadoLocal); i.addEventListener('input', salvarEstadoLocal); });
+const chkInsumos = document.getElementById('chkInsumos'); const painelInsumos = document.getElementById('painelInsumos'); chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstadoLocal(); });
+const chkComparativo = document.getElementById('chkComparativo'); const painelComparativo = document.getElementById('painelComparativo'); chkComparativo.addEventListener('change', () => { painelComparativo.style.display = chkComparativo.checked ? 'block' : 'none'; salvarEstadoLocal(); });
+const chkCronograma = document.getElementById('chkCronograma'); const painelCronograma = document.getElementById('painelCronograma'); chkCronograma.addEventListener('change', () => { painelCronograma.style.display = chkCronograma.checked ? 'block' : 'none'; salvarEstadoLocal(); });
+
+function salvarEstadoLocal() { localStorage.setItem('blocok_temp_paredes', JSON.stringify(paredesMedidas)); }
+function carregarEstadoLocal() { const s = localStorage.getItem('blocok_temp_paredes'); if(s) { paredesMedidas = JSON.parse(s); renderizarTabela(); } }
