@@ -2,6 +2,8 @@ let precosBlocok = {
     "10": { avista: 0, prazo: 0 }, "13": { avista: 0, prazo: 0 }, "15": { avista: 0, prazo: 0 }, "20": { avista: 0, prazo: 0 }
 };
 
+let configVisualNuvem = { logo: null, tamanho: 70, cor: "#ff6b00" }; // Padrões iniciais
+
 let listaUsuariosGlobais = {}; 
 
 let paredesMedidas = []; 
@@ -34,7 +36,7 @@ try {
 } catch (erro) { console.error("Erro Nuvem:", erro); }
 
 // ==========================================
-// ⚙️ GESTÃO DE PREÇOS E ADMIN
+// ⚙️ GESTÃO DE PREÇOS E ADMIN (NA NUVEM)
 // ==========================================
 async function carregarPrecosDaNuvem() {
     if (!db) return;
@@ -49,6 +51,7 @@ async function carregarPrecosDaNuvem() {
             };
             await db.collection("configuracoes").doc("precosGlobais").set(precosBlocok);
         }
+        // Povoa campos normais
         document.getElementById('p10v').value = precosBlocok["10"].avista; document.getElementById('p10p').value = precosBlocok["10"].prazo;
         document.getElementById('p13v').value = precosBlocok["13"].avista; document.getElementById('p13p').value = precosBlocok["13"].prazo;
         document.getElementById('p15v').value = precosBlocok["15"].avista; document.getElementById('p15p').value = precosBlocok["15"].prazo;
@@ -79,12 +82,80 @@ document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
 };
 
 // ==========================================
+// 🎨 NOVO: GESTÃO DE IDENTIDADE VISUAL (NUVEM)
+// ==========================================
+
+async function carregarIdentidadeVisualDaNuvem() {
+    if (!db) return;
+    try {
+        const docRef = await db.collection("configuracoes").doc("identidadeVisual").get();
+        if (docRef.exists) {
+            configVisualNuvem = docRef.data();
+        } else {
+            configVisualNuvem = { logo: null, tamanho: 70, cor: "#ff6b00" }; // Padrão
+            await db.collection("configuracoes").doc("identidadeVisual").set(configVisualNuvem);
+        }
+        
+        // Povoa o painel de configuração (se Admin)
+        if(sessionStorage.getItem('blocok_perfil') === 'admin') {
+            document.getElementById('sliderTamanhoLogo').value = configVisualNuvem.tamanho;
+            document.getElementById('inputCorDestaque').value = configVisualNuvem.cor;
+            document.getElementById('valorCorDestaqueHex').value = configVisualNuvem.cor.toUpperCase();
+            
+            const p = document.getElementById('previsualizacaoLogo');
+            if(configVisualNuvem.logo) {
+                p.innerHTML = `<img src="${configVisualNuvem.logo}" style="max-height: 100%; max-width: 100%;">`;
+            } else { p.innerHTML = '<span>Nenhuma Logo Salva</span>'; }
+        }
+        
+        console.log("Identidade visual sincronizada.");
+    } catch (e) { console.error("Erro Visuais:", e); }
+}
+
+// Sincroniza o texto HEX com o seletor de cor
+document.getElementById('inputCorDestaque').addEventListener('input', (e) => {
+    document.getElementById('valorCorDestaqueHex').value = e.target.value.toUpperCase();
+});
+
+// Upload da Logo da Empresa
+document.getElementById('uploadLogoEmpresa').onchange = (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    // Verificação simples de tamanho (ex: max 500kb)
+    if(file.size > 512000) return alert("❌ Imagem muito pesada! Use PNG/JPEG com menos de 500KB.");
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        configVisualNuvem.logo = ev.target.result; // Salva a Base64 no objeto local
+        document.getElementById('previsualizacaoLogo').innerHTML = `<img src="${configVisualNuvem.logo}" style="max-height: 100%; max-width: 100%;">`;
+    };
+    reader.readAsDataURL(file);
+};
+
+document.getElementById('btnSalvarVisuais').onclick = async () => {
+    let btn = document.getElementById('btnSalvarVisuais'); btn.innerText = "⏳..."; btn.disabled = true; btn.style.backgroundColor = "#ccc";
+    
+    // Atualiza os dados finais baseados nos inputs
+    configVisualNuvem.tamanho = document.getElementById('sliderTamanhoLogo').value;
+    configVisualNuvem.cor = document.getElementById('inputCorDestaque').value;
+
+    try {
+        await db.collection("configuracoes").doc("identidadeVisual").set(configVisualNuvem);
+        alert("🎉 Identidade Visual salva com sucesso na Nuvem! Toda a equipe já está usando a nova logo e cor.");
+    } catch (error) { 
+        alert("Erro ao salvar visuais. Verifique a conexão."); 
+    } finally {
+        btn.innerText = "💾 SALVAR CONFIGURAÇÕES VISUAIS NA NUVEM"; btn.disabled = false; btn.style.backgroundColor = "#1e3a8a";
+    }
+};
+
+
+// ==========================================
 // 👥 GESTÃO DE USUÁRIOS
 // ==========================================
 async function renderizarPainelUsuarios() {
     if(!db) return;
     const docRef = await db.collection("configuracoes").doc("usuarios").get();
-    if(docRef.exists) { listaUsuariosGlobais = docRef.data(); }
+    if(docRef.exists) listaUsuariosGlobais = docRef.data();
     const tbody = document.getElementById('listaVendedores'); if(!tbody) return;
     tbody.innerHTML = "";
     for(let user in listaUsuariosGlobais) {
@@ -108,7 +179,7 @@ window.removerVendedor = async function(user) {
 };
 
 // ==========================================
-// 📁 SESSÃO E BANCO DE DADOS (COM CERCADINHO)
+// 📁 SESSÃO E BANCO DE DADOS
 // ==========================================
 function aplicarRestricoes(perfil) {
     if (perfil === 'admin') { document.getElementById('painelAdmin').style.display = 'block'; renderizarPainelUsuarios(); } 
@@ -120,7 +191,7 @@ function aplicarRestricoes(perfil) {
 }
 function verificarSessao() {
     const logado = sessionStorage.getItem('blocok_logado'); const perfil = sessionStorage.getItem('blocok_perfil');
-    if (logado === 'true') { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('mainContent').style.display = 'block'; aplicarRestricoes(perfil); carregarEstadoLocal(); atualizarSelectProjetosNuvem(); carregarPrecosDaNuvem(); }
+    if (logado === 'true') { document.getElementById('loginOverlay').style.display = 'none'; document.getElementById('mainContent').style.display = 'block'; aplicarRestricoes(perfil); carregarEstadoLocal(); atualizarSelectProjetosNuvem(); carregarPrecosDaNuvem(); carregarIdentidadeVisualDaNuvem(); }
 }
 
 document.getElementById('btnLogin').onclick = async () => {
@@ -131,50 +202,21 @@ document.getElementById('btnLogin').onclick = async () => {
         let docRef = null; if(db) docRef = await db.collection("configuracoes").doc("usuarios").get();
         if (docRef && docRef.exists) { listaUsuariosGlobais = docRef.data(); } 
         else { listaUsuariosGlobais = { "admin": { senha: "blocok2024", perfil: "admin" } }; if(db) await db.collection("configuracoes").doc("usuarios").set(listaUsuariosGlobais); }
-        
-        if (listaUsuariosGlobais[user] && listaUsuariosGlobais[user].senha === pass) { 
-            sessionStorage.setItem('blocok_logado', 'true'); 
-            sessionStorage.setItem('blocok_perfil', listaUsuariosGlobais[user].perfil); 
-            // NOVO: Salvando o nome do usuário logado para o Cercadinho
-            sessionStorage.setItem('blocok_usuario', user);
-            location.reload(); 
-        } 
+        if (listaUsuariosGlobais[user] && listaUsuariosGlobais[user].senha === pass) { sessionStorage.setItem('blocok_logado', 'true'); sessionStorage.setItem('blocok_perfil', listaUsuariosGlobais[user].perfil); sessionStorage.setItem('blocok_usuario', user); location.reload(); } 
         else { erro.style.display = 'block'; setTimeout(() => { erro.style.display = 'none'; }, 3000); btn.innerText = "ENTRAR NO SISTEMA"; btn.disabled = false; }
     } catch(e) { alert("Erro de conexão."); btn.innerText = "ENTRAR NO SISTEMA"; btn.disabled = false; }
 };
-document.getElementById('btnLogout').onclick = () => { 
-    sessionStorage.removeItem('blocok_logado'); 
-    sessionStorage.removeItem('blocok_perfil'); 
-    sessionStorage.removeItem('blocok_usuario');
-    location.reload(); 
-};
+document.getElementById('btnLogout').onclick = () => { sessionStorage.removeItem('blocok_logado'); sessionStorage.removeItem('blocok_perfil'); sessionStorage.removeItem('blocok_usuario'); location.reload(); };
 
-// ==========================================
-// A MÁGICA DO CERCADINHO: Filtro de Nuvem
-// ==========================================
 async function atualizarSelectProjetosNuvem() {
     const select = document.getElementById('selectProjetos'); if(!select || !db) return; select.innerHTML = '<option value="">⏳...</option>';
     try { 
-        let snap;
-        const perfil = sessionStorage.getItem('blocok_perfil');
-        const usuarioLogado = sessionStorage.getItem('blocok_usuario');
-
-        // Se for admin, puxa a coleção inteira. Se for vendedor, puxa SÓ as dele.
-        if (perfil === 'admin') {
-            snap = await db.collection("obras").get();
-        } else {
-            snap = await db.collection("obras").where("dono", "==", usuarioLogado).get();
-        }
-        
+        let snap; const perfil = sessionStorage.getItem('blocok_perfil'); const usuarioLogado = sessionStorage.getItem('blocok_usuario');
+        if (perfil === 'admin') snap = await db.collection("obras").get(); 
+        else snap = await db.collection("obras").where("dono", "==", usuarioLogado).get();
         select.innerHTML = '<option value="">-- Abrir Obra da Nuvem --</option>'; 
         if(snap.empty) { select.innerHTML = '<option value="">Nenhuma obra salva</option>'; return; } 
-        
-        snap.forEach(doc => { 
-            let dadosObra = doc.data();
-            // O Admin ganha a vantagem de ver o nome do dono entre parênteses
-            let textoDono = (perfil === 'admin' && dadosObra.dono) ? ` (${dadosObra.dono})` : '';
-            select.innerHTML += `<option value="${doc.id}">${doc.id}${textoDono}</option>`; 
-        }); 
+        snap.forEach(doc => { let d = doc.data(); let textoDono = (perfil === 'admin' && d.dono) ? ` (${d.dono})` : ''; select.innerHTML += `<option value="${doc.id}">${doc.id}${textoDono}</option>`; }); 
     } catch (error) { select.innerHTML = '<option value="">Erro</option>'; }
 }
 
@@ -202,38 +244,20 @@ function carregarEstadoLocal() {
 document.getElementById('btnSalvarProjeto').onclick = async () => {
     if(!db) return; let nome = document.getElementById('nomeProjetoAtivo').value.trim(); if(!nome) return alert("Digite um nome.");
     let btn = document.getElementById('btnSalvarProjeto'); btn.innerText = "⏳..."; btn.disabled = true; salvarEstadoLocal(); 
-    
-    const currentData = JSON.parse(localStorage.getItem('blocokData')); 
-    const currentImage = localStorage.getItem('blocokImage'); 
-    if (currentImage) currentData.imagem = currentImage;
-    
-    // NOVO: Salvando a etiqueta do Dono na obra
+    const currentData = JSON.parse(localStorage.getItem('blocokData')); const currentImage = localStorage.getItem('blocokImage'); if (currentImage) currentData.imagem = currentImage;
     currentData.dono = sessionStorage.getItem('blocok_usuario') || 'admin';
-    
     try { await db.collection("obras").doc(nome).set(currentData); alert(`Salvo!`); atualizarSelectProjetosNuvem(); } catch (error) { alert("Erro ao salvar."); } finally { btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false; }
 };
 
 document.getElementById('btnCarregarProjeto').onclick = async () => {
-    if(!db) return; 
-    let selectVal = document.getElementById('selectProjetos').value; 
-    if(!selectVal) return alert("Selecione.");
-    // Remover o nome do dono caso o admin tenha selecionado (ex: "Casa (carlos)" -> "Casa")
+    if(!db) return; let selectVal = document.getElementById('selectProjetos').value; if(!selectVal) return alert("Selecione.");
     let nomeReal = selectVal.split(' (')[0];
-
     if(confirm("Substituir área atual?")) {
         let btn = document.getElementById('btnCarregarProjeto'); btn.innerText = "⏳...";
         try { const docRef = await db.collection("obras").doc(nomeReal).get(); if (docRef.exists) { let dados = docRef.data(); if (dados.imagem) { localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem; } else localStorage.removeItem('blocokImage'); localStorage.setItem('blocokData', JSON.stringify(dados)); location.reload(); } else alert("Não encontrada."); } catch(error) { alert("Erro."); } finally { btn.innerText = "📂 Abrir"; }
     }
 };
-
-document.getElementById('btnExcluirProjeto').onclick = async () => { 
-    if(!db) return; 
-    let selectVal = document.getElementById('selectProjetos').value; 
-    if(!selectVal) return alert("Selecione."); 
-    let nomeReal = selectVal.split(' (')[0];
-    
-    if(confirm(`APAGAR '${nomeReal}'?`)) { try { await db.collection("obras").doc(nomeReal).delete(); alert("Excluída."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } } 
-};
+document.getElementById('btnExcluirProjeto').onclick = async () => { if(!db) return; let selectVal = document.getElementById('selectProjetos').value; if(!selectVal) return alert("Selecione."); let nomeReal = selectVal.split(' (')[0]; if(confirm(`APAGAR '${nomeReal}'?`)) { try { await db.collection("obras").doc(nomeReal).delete(); alert("Excluída."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro."); } } };
 document.getElementById('btnLimpar').onclick = () => { if(confirm("Apagar Área?")) { localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage'); location.reload(); } };
 document.querySelectorAll('.save-state').forEach(i => { i.addEventListener('change', salvarEstadoLocal); i.addEventListener('input', salvarEstadoLocal); });
 const chkInsumos = document.getElementById('chkInsumos'); const painelInsumos = document.getElementById('painelInsumos'); chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstadoLocal(); });
@@ -303,17 +327,34 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         totalAreaBruta += areaBrutaParede; totalAreaLiquida += areaLiquidaParede;
     });
 
+    // ==========================================
+    // A MÁGICA DO PDF DINÂMICO: Logo e Cor
+    // ==========================================
+    
+    // Inserção da Logo (se existir) com tamanho ajustado
+    let tagLogoPdf = '';
+    if (configVisualNuvem.logo) {
+        tagLogoPdf = `<img src="${configVisualNuvem.logo}" style="max-height: 80px; max-width: ${configVisualNuvem.tamanho}%; margin-bottom: 15px; display: block;">`;
+    }
+
     let html = `
     <div id="pdfContent" style="padding: 30px; font-family: Arial, sans-serif; position: relative; overflow: hidden; background: white; color: black; min-height: 800px;">
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 140px; color: rgba(0, 0, 0, 0.04); font-weight: 900; letter-spacing: 15px; z-index: 0; pointer-events: none;">BLOCOK</div>
+        
         <div style="position: relative; z-index: 1;">
-            <div style="border-bottom: 2px solid #ff6b00; padding-bottom: 10px; margin-bottom: 20px;">
+            
+            ${tagLogoPdf}
+
+            <div style="border-bottom: 3px solid ${configVisualNuvem.cor}; padding-bottom: 10px; margin-bottom: 20px;">
                 <h1 style="color: #2c3e50; margin: 0 0 5px 0;">PROPOSTA COMERCIAL - SISTEMA BLOCOK</h1>
                 <p><strong>Cliente / Projeto:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
             </div>
             
             <h3 style="color: #2c3e50;">1. Quantitativo de Painéis (${pag.toUpperCase()})</h3>
-            <table class="pdf-table"><tr><th>Espessura</th><th>Área Bruta</th><th>Descontos</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th></tr>`;
+            <table class="pdf-table">
+                <tr style="background: ${configVisualNuvem.cor}; color: #fff;">
+                    <th>Espessura</th><th>Área Bruta</th><th>Descontos</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th>
+                </tr>`;
 
     let linhasRomaneioBlocos = ''; 
     let iBloco = 1;
@@ -322,7 +363,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let d = resumoParedes[esp]; if (d.bruta === 0) continue;
         let qtd = Math.ceil(d.liquida / 0.81); let preco = precosBlocok[esp][pag] * qtd;
         valorTotalBlocos += preco;
-        html += `<tr><td><strong>${esp} cm</strong></td><td>${d.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${d.vaos.toFixed(2)} m²</td><td style="color:#27ae60; font-weight:bold;">${d.liquida.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
+        html += `<tr><td><strong>${esp} cm</strong></td><td>${d.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${d.vaos.toFixed(2)} m²</td><td style="color:${configVisualNuvem.cor}; font-weight:bold;">${d.liquida.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
         linhasRomaneioBlocos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">${iBloco++}</td><td style="border: 1px solid #000; padding: 8px;">Painel BLOCOK de ${esp} cm</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${qtd} peças</strong></td></tr>`;
     }
     html += `</table>`;
@@ -334,10 +375,12 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let pArg = parseFloat(document.getElementById('precoArgamassa').value || 0), pPU = parseFloat(document.getElementById('precoPU').value || 0), pTela = parseFloat(document.getElementById('precoTela').value || 0);
         valorTotalInsumos = (sacos * pArg) + (tubos * pPU) + (rolos * pTela);
         html += `<h3 style="color: #2c3e50; margin-top: 20px;">2. Materiais de Instalação</h3>
-            <table class="pdf-table"><tr><th>Insumo</th><th>Qtd.</th><th>Valor Unit.</th><th>Subtotal</th></tr>
-            <tr><td>Argamassa (20kg)</td><td>${sacos} scs</td><td>R$ ${pArg.toFixed(2)}</td><td>R$ ${(sacos*pArg).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
-            <tr><td>Espuma PU (500ml)</td><td>${tubos} un.</td><td>R$ ${pPU.toFixed(2)}</td><td>R$ ${(tubos*pPU).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
-            <tr><td>Tela Fibra (50m)</td><td>${rolos} rls</td><td>R$ ${pTela.toFixed(2)}</td><td>R$ ${(rolos*pTela).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr></table>`;
+            <table class="pdf-table">
+                <tr style="background: ${configVisualNuvem.cor}; color: #fff;"><th>Insumo</th><th>Qtd.</th><th>Valor Unit.</th><th>Subtotal</th></tr>
+                <tr><td>Argamassa (20kg)</td><td>${sacos} scs</td><td>R$ ${pArg.toFixed(2)}</td><td>R$ ${(sacos*pArg).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
+                <tr><td>Espuma PU (500ml)</td><td>${tubos} un.</td><td>R$ ${pPU.toFixed(2)}</td><td>R$ ${(tubos*pPU).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
+                <tr><td>Tela Fibra (50m)</td><td>${rolos} rls</td><td>R$ ${pTela.toFixed(2)}</td><td>R$ ${(rolos*pTela).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>
+            </table>`;
         linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Argamassa Polimérica (Saco 20kg)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${sacos} sacos</strong></td></tr>`;
         linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Espuma Expansiva PU (Tubo 500ml)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${tubos} tubos</strong></td></tr>`;
         linhasRomaneioInsumos += `<tr><td style="border: 1px solid #000; padding: 8px; text-align: center;">-</td><td style="border: 1px solid #000; padding: 8px;">Tela de Fibra de Vidro (Rolo 50m)</td><td style="border: 1px solid #000; padding: 8px; text-align: center;"><strong>${rolos} rolos</strong></td></tr>`;
@@ -353,16 +396,16 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     if (descontoPct > 0) { html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #ef4444;"><span>Desconto Concedido (${descontoPct}%):</span><strong>- R$ ${valorDescontoReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`; }
     if (frete > 0) { html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px; color: #3b82f6;"><span>Frete / Logística:</span><strong>+ R$ ${frete.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`; }
 
-    html += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#2c3e50; margin-top:10px;"><strong>TOTAL A PAGAR:</strong><strong style="color:#ff6b00;">R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div></div>`;
+    html += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#2c3e50; margin-top:10px;"><strong>TOTAL A PAGAR:</strong><strong style="color:${configVisualNuvem.cor};">R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div></div>`;
 
     let diasEstimados = totalAreaLiquida > 0 ? Math.ceil(totalAreaLiquida / produtividade) : 0;
     if (incluirCronograma) {
         html += `<h3 style="color: #2c3e50; margin-top: 25px;">3. Cronograma Estimado de Montagem</h3>
-            <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 6px; border-left: 5px solid #10b981;">
+            <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 6px; border-left: 5px solid ${configVisualNuvem.cor};">
                 <p style="margin: 0 0 10px 0; color: #333; font-size: 13px;">Baseado em uma produtividade média de <strong>${produtividade} m²/dia</strong> por equipe.</p>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 14px; font-weight: bold;">Tempo estimado de montagem das paredes:</span>
-                    <strong style="font-size: 18px; color: #10b981; background: #e8f8f5; padding: 5px 15px; border-radius: 4px;">${diasEstimados} dia(s) útil(eis)</strong>
+                    <strong style="font-size: 18px; color: ${configVisualNuvem.cor}; background: #fdf2e9; padding: 5px 15px; border-radius: 4px;">${diasEstimados} dia(s) útil(eis)</strong>
                 </div>
             </div>`;
     }
@@ -372,45 +415,40 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let totalConvPronto = totalAreaLiquida * parseFloat(document.getElementById('custoConvPronto').value || 0);
         let totalBlocokPronto = subtotalObra + (totalAreaLiquida * parseFloat(document.getElementById('custoBlocokMO').value || 0));
         economiaReais = totalConvPronto - totalBlocokPronto; let numeracao = incluirCronograma ? "4" : "3";
+        
         html += `<h3 style="color:#2c3e50; margin-top:25px;">${numeracao}. Análise de Viabilidade Financeira</h3>
             <div class="box-comparativo">
             <h4 style="margin: 0 0 10px 0; color: #555;">Parede Pronta (Material + Mão de Obra)</h4>
             <div class="grafico-linha"><span class="lbl-grafico">Convencional</span><div class="barra-bg"><div class="barra-fill-bad" style="width: 100%;">&nbsp;</div></div><span class="val-grafico" style="color:#e74c3c;">R$ ${totalConvPronto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
-            <div class="grafico-linha"><span class="lbl-grafico">BLOCOK Pronto</span><div class="barra-bg"><div class="barra-fill-good" style="width: ${(totalBlocokPronto/totalConvPronto)*100}%;">&nbsp;</div></div><span class="val-grafico" style="color:#27ae60;">R$ ${totalBlocokPronto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
-            <div style="text-align:center; margin-top:15px; background:#e8f8f5; padding:10px; color:#27ae60; font-weight:bold; border-radius: 4px;">Economia Estimada: R$ ${economiaReais > 0 ? economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
+            <div class="grafico-linha"><span class="lbl-grafico">BLOCOK Pronto</span><div class="barra-bg"><div class="barra-fill-good" style="background: ${configVisualNuvem.cor}; width: ${(totalBlocokPronto/totalConvPronto)*100}%;">&nbsp;</div></div><span class="val-grafico" style="color:${configVisualNuvem.cor};">R$ ${totalBlocokPronto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
+            <div style="text-align:center; margin-top:15px; background:#fdf2e9; padding:10px; color:${configVisualNuvem.cor}; font-weight:bold; border-radius: 4px; border: 1px solid ${configVisualNuvem.cor};">Economia Estimada: R$ ${economiaReais > 0 ? economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
     }
 
-    html += `<p style="font-size:10px; text-align:center; margin-top:20px; color: #95a5a6;">* Documento gerado digitalmente pelo BLOCOK OS.</p></div>`;
+    html += `<p style="font-size:10px; text-align:center; margin-top:20px; color: #95a5a6;">* Documento gerado digitalmente.</p></div>`;
 
-    // PARTE 2: ROMANEIO
+    // ROMANEIO (Preto e branco, sem logo)
     let htmlRomaneio = `
     <div id="pdfRomaneioContent" style="display:none;">
         <div style="padding: 40px; font-family: Arial, sans-serif; background: white; color: black; width: 100%; min-height: 800px;">
             <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
                 <h1 style="margin: 0 0 5px 0; font-size: 22px; text-transform: uppercase;">ORDEM DE SEPARAÇÃO E CARGA (ROMANEIO)</h1>
                 <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
-                <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total Const.:</strong> ${totalAreaLiquida.toFixed(2)} m²</p>
+                <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total:</strong> ${totalAreaLiquida.toFixed(2)} m²</p>
             </div>
             <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">1. Separação de Painéis BLOCOK</h3>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th></tr>
+                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Quantidade</th></tr>
                 ${linhasRomaneioBlocos}
             </table>`;
     if (incluirInsumos) {
         htmlRomaneio += `
             <h3 style="font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">2. Separação de Insumos</h3>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição do Produto</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Qtd. para Separar</th></tr>
+                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; width: 10%;">Item</th><th style="border: 1px solid #000; padding: 8px; width: 60%; text-align: left;">Descrição</th><th style="border: 1px solid #000; padding: 8px; width: 30%;">Quantidade</th></tr>
                 ${linhasRomaneioInsumos}
             </table>`;
     }
-    htmlRomaneio += `
-            <div style="margin-top: 80px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura do Responsável pela Separação / Expedição</p></div>
-            <div style="margin-top: 60px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura do Motorista / Conferente da Carga</p></div>
-            <p style="font-size:10px; text-align:center; margin-top:40px; color: #555;">Documento de uso interno. Valores omitidos por segurança.</p>
-        </div>
-    </div>`;
-
+    htmlRomaneio += `<p style="font-size:10px; text-align:center; margin-top:40px; color: #555;">Documento de uso interno.</p></div></div>`;
     html += htmlRomaneio;
 
     html += `</div>
@@ -423,29 +461,23 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     const caixa = document.getElementById('caixaResultado'); caixa.innerHTML = html; caixa.style.display = 'block';
 
     document.getElementById('downloadPdf').onclick = () => {
-        const btn = document.getElementById('downloadPdf'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#94a3b8";
+        const btn = document.getElementById('downloadPdf'); btn.innerText = "⏳..."; btn.style.backgroundColor = "#94a3b8";
         html2pdf().set({ margin:0, filename:`Proposta_BLOCOK_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(document.getElementById('pdfContent')).save().then(() => {
-            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#ef4444"; setTimeout(() => { btn.innerText = "📄 PROPOSTA (PDF)"; }, 3000);
+            btn.innerText = "📄 PROPOSTA (PDF)"; btn.style.backgroundColor = "#ef4444";
         });
     };
-
     document.getElementById('downloadRomaneio').onclick = () => {
-        const btn = document.getElementById('downloadRomaneio'); btn.innerText = "⏳ Gerando..."; btn.style.backgroundColor = "#94a3b8";
+        const btn = document.getElementById('downloadRomaneio'); btn.innerText = "⏳..."; btn.style.backgroundColor = "#94a3b8";
         const elementoRomaneio = document.getElementById('pdfRomaneioContent').children[0];
         html2pdf().set({ margin:0, filename:`Romaneio_Carga_${nome.replace(/\s+/g, '_')}.pdf`, html2canvas:{scale:2, scrollY:0}, jsPDF:{unit:'mm', format:'a4', orientation:'portrait'} }).from(elementoRomaneio).save().then(() => {
-            btn.innerText = "✅ Salvo!"; btn.style.backgroundColor = "#475569"; setTimeout(() => { btn.innerText = "🏭 ROMANEIO FÁBRICA"; }, 3000);
+            btn.innerText = "🏭 ROMANEIO FÁBRICA"; btn.style.backgroundColor = "#475569";
         });
     };
-
     document.getElementById('sendWhatsApp').onclick = () => {
-        if(!telefone) return alert("Preencha o WhatsApp do cliente.");
-        let texto = `*PROPOSTA COMERCIAL - BLOCOK* 🧱\n\nOlá, *${nome.toUpperCase()}*! Segue o resumo:\n\n📏 *Área Total:* ${totalAreaLiquida.toFixed(2)} m²\n💰 *Subtotal Produtos:* R$ ${subtotalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
-        if(descontoPct > 0) { texto += `📉 *Desconto:* - R$ ${valorDescontoReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`; }
-        if(frete > 0) { texto += `🚚 *Frete:* + R$ ${frete.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`; }
-        texto += `\n💲 *TOTAL A PAGAR:* R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n\n`;
-        if(incluirCronograma && diasEstimados > 0) { texto += `⏱️ *Tempo de Montagem:* Apenas ${diasEstimados} dia(s) útil(eis)!\n`; }
-        if(economiaReais > 0) texto += `✅ *Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})} em relação à alvenaria pronta!\n`;
-        texto += `\nEstou enviando o *PDF detalhado* a seguir!`;
-        window.open(`https://api.whatsapp.com/send?phone=55${telefone}&text=${encodeURIComponent(texto)}`, '_blank');
+        if(!telefone) return alert("Preencha o WhatsApp.");
+        let t = `*PROPOSTA COMERCIAL - BLOCOK* 🧱\n\nOlá, *${nome.toUpperCase()}*!\n\n📏 *Área Total:* ${totalAreaLiquida.toFixed(2)} m²\n`;
+        if(frete > 0) { t += `🚚 *Frete:* R$ ${frete.toFixed(2)}\n`; }
+        t += `💰 *TOTAL A PAGAR:* R$ ${valorGlobalObra.toFixed(2)}\n\nEstou enviando o *PDF detalhado*!`;
+        window.open(`https://api.whatsapp.com/send?phone=55${telefone}&text=${encodeURIComponent(t)}`, '_blank');
     };
 };

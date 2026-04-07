@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLOCOK System | Acesso Restrito</title>
-    <!-- Quebrando o cache com v=8 -->
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=9">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -115,16 +114,43 @@
 
                     <button type="button" id="btnSalvarPrecosGlobais" class="btn-tech-primary" style="width: 100%; margin-top: 15px; background: #f59e0b; color: #1a150b;">💾 ATUALIZAR PREÇOS E CONFIGURAÇÕES DA EMPRESA</button>
 
+                    <div style="border-top: 1px dashed #334155; margin-top: 25px; padding-top: 15px; background: #0c111a; padding: 15px; border-radius: 8px; border-left: 5px solid #3b82f6;">
+                        <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #3b82f6;">🎨 LOGO E IDENTIDADE VISUAL NO PDF</label>
+                        <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Defina a marca que aparecerá no topo dos orçamentos gerados por você e sua equipe.</p>
+                        
+                        <div style="display: flex; gap: 15px; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <label class="btn-tech-primary" style="background: #3b82f6; display: block; text-align: center; margin-bottom: 10px; padding: 10px;">
+                                    📷 Carregar Nova Logo
+                                    <input type="file" id="uploadLogoEmpresa" accept="image/png, image/jpeg" style="display:none;">
+                                </label>
+                                <div id="previsualizacaoLogo" style="width: 100%; height: 80px; background: #0b0f19; border: 2px dashed #334155; border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden; color: #64748b; font-size: 11px;">
+                                    <span>Nenhuma Logo Salva</span>
+                                </div>
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px;">Tamanho no PDF (%):</label>
+                                <input type="range" id="sliderTamanhoLogo" class="save-state" min="10" max="100" value="70" style="width: 100%;">
+                                
+                                <label style="color: #cbd5e1; font-size: 12px; display: block; margin-bottom: 5px; margin-top: 10px;">Cor de Destaque no PDF:</label>
+                                <div style="display: flex; gap: 5px;">
+                                    <input type="color" id="inputCorDestaque" class="save-state" value="#ff6b00" style="height: 38px; width: 50px; border: 1px solid #334155; background: #0b0f19; cursor: pointer;">
+                                    <input type="text" id="valorCorDestaqueHex" class="input-tech" style="padding: 8px;" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" id="btnSalvarVisuais" class="btn-tech-primary" style="width: 100%; margin-top: 15px; background: #1e3a8a; border-color: #3b82f6;">💾 SALVAR CONFIGURAÇÕES VISUAIS NA NUVEM</button>
+                    </div>
+
                     <div style="border-top: 1px dashed #334155; margin-top: 25px; padding-top: 15px;">
                         <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #3b82f6;">👥 GESTÃO DE VENDEDORES</label>
-                        <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Crie logins para sua equipe. Eles terão acesso bloqueado a estas configurações.</p>
+                        <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">Crie logins para sua equipe.</p>
                         
                         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <input type="text" id="novoUsuarioVendedor" class="input-tech" placeholder="Login (ex: carlos)">
+                            <input type="text" id="novoUsuarioVendedor" class="input-tech" placeholder="Login">
                             <input type="text" id="novaSenhaVendedor" class="input-tech" placeholder="Senha">
                             <button type="button" id="btnAddVendedor" class="btn-tech-primary" style="background: #3b82f6; white-space: nowrap;">+ Adicionar</button>
                         </div>
-
                         <div class="lista-paredes" style="max-height: 200px; background: #0b0f19;">
                             <table>
                                 <thead>
