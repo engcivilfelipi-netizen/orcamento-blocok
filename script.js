@@ -174,7 +174,7 @@ function renderizarTabela() {
 window.removerP = (i) => { paredesMedidas.splice(i, 1); renderizarTabela(); };
 
 // ==========================================
-// 🚀 GERAÇÃO DE PROPOSTA E ROMANEIO (LARGURA FIXA E AUTO-SCROLL)
+// 🚀 GERAÇÃO DE PROPOSTA E ROMANEIO (PDF BUG FIX DEFINITIVO)
 // ==========================================
 document.getElementById('formCalculadora').onsubmit = (e) => {
     e.preventDefault();
@@ -204,7 +204,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     let tagLogoPdf = configVisualNuvem.logo ? `<img src="${configVisualNuvem.logo}" style="max-height: 80px; max-width: ${configVisualNuvem.tamanho}%; display: block; margin-left: auto;">` : '';
 
     // --- HTML DO PDF PRINCIPAL ---
-    // A MÁGICA DE VERDADE: A caixa interna TEM que ter 'width: 794px' (Tamanho do A4) e o pai tem 'overflow-x: auto'
     let htmlPdf = `
     <div style="width: 100%; overflow-x: auto; background: #e2e8f0; padding: 15px; border-radius: 8px;">
         <div id="pdfContent" style="width: 794px; min-width: 794px; padding: 40px; box-sizing: border-box; font-family: Arial, sans-serif; background: white; color: black; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -300,7 +299,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
 
     htmlPdf += `<p style="font-size:10px; text-align:center; margin-top:30px; color: #95a5a6;">* Documento gerado digitalmente pelo sistema oficial.</p></div></div>`;
 
-    // --- HTML DO ROMANEIO (COM LARGURA FIXA BLINDADA) ---
+    // --- HTML DO ROMANEIO ---
     let htmlRomaneio = `
     <div style="width: 100%; overflow-x: auto; background: #e2e8f0; padding: 15px; border-radius: 8px;">
         <div id="pdfRomaneio" style="width: 794px; min-width: 794px; padding: 40px; box-sizing: border-box; font-family: Arial, sans-serif; background: white; color: black; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -333,12 +332,22 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     
     caixa.style.display = 'block';
 
-    // CONFIGURAÇÕES DO PDF (Agora a biblioteca vai focar no elemento de 794px sem cortar)
+    // ==========================================
+    // CONFIGURAÇÃO DO MOTOR PDF (CORRIGIDA: SCROLL E LARGURA FIXA DE VOLTA)
+    // ==========================================
     const optPDF = {
-        margin: [10, 10, 10, 10],
+        margin: 10,
         filename: `Proposta_${nome.replace(/\s+/g, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true }, 
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    const optRomaneio = {
+        margin: 10,
+        filename: `Romaneio_${nome.replace(/\s+/g, '_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 800 }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -347,7 +356,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     };
     
     document.getElementById('btnRom').onclick = () => { 
-        html2pdf().set(optPDF).from(document.getElementById('pdfRomaneio')).save(); 
+        html2pdf().set(optRomaneio).from(document.getElementById('pdfRomaneio')).save(); 
     };
     
     document.getElementById('btnZap').onclick = () => {
