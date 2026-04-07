@@ -3,158 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLOCOK System | Orçamentista Inteligente</title>
+    <title>BLOCOK System | Acesso Restrito</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
-    <div class="header-main">
-        <h1><span class="highlight">BLOCOK</span> OS</h1>
-        <p>Sistema de Levantamento Quantitativo e Orçamento Inteligente</p>
+
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-box">
+            <div class="login-header">
+                <span class="highlight">BLOCOK</span> OS
+                <p>Acesso Restrito a Vendedores</p>
+            </div>
+            <div class="form-group">
+                <label>Usuário:</label>
+                <input type="text" id="userInput" class="input-tech" placeholder="Seu usuário">
+            </div>
+            <div class="form-group">
+                <label>Senha:</label>
+                <input type="password" id="passInput" class="input-tech" placeholder="******">
+            </div>
+            <button id="btnLogin" class="btn-tech-run">ENTRAR NO SISTEMA</button>
+            <p id="loginError" style="color: #ef4444; font-size: 12px; margin-top: 10px; display: none;">❌ Usuário ou senha incorretos!</p>
+        </div>
     </div>
 
-    <div class="dashboard">
-        <!-- PAINEL DA PLANTA -->
-        <div class="painel-planta">
-            <div class="controles-planta">
-                <label class="btn-tech">
-                    📁 Carregar Planta
-                    <input type="file" id="uploadPlanta" accept="image/png, image/jpeg" style="display:none;">
-                </label>
-                <button id="btnCalibrar" class="btn-tech" disabled>📐 1. Calibrar</button>
-                <button id="btnMedir" class="btn-tech" disabled>🎯 2. Medir</button>
-                <button id="btnLimpar" class="btn-tech-danger" title="Limpar Área de Trabalho">🗑️ Limpar Área</button>
-            </div>
-            <div class="status-bar" id="statusBar">Aguardando upload do projeto...</div>
-            <div class="canvas-container">
-                <canvas id="areaDesenho"></canvas>
+    <div id="mainContent" style="display: none;">
+        <div class="header-main">
+            <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; padding: 0 20px;">
+                <div style="text-align: left;">
+                    <h1><span class="highlight">BLOCOK</span> OS</h1>
+                    <p>Orçamentista Inteligente</p>
+                </div>
+                <button id="btnLogout" class="btn-tech-danger" style="width: auto; padding: 10px 20px;">🚪 Sair do Sistema</button>
             </div>
         </div>
 
-        <!-- PAINEL DO ORÇAMENTO -->
-        <div class="painel-calculadora container">
-            
-            <!-- GERENCIADOR DE OBRAS -->
-            <div class="controle-insercao" style="border-left-color: #10b981; background: #0f1c18;">
-                <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #10b981;">📁 GERENCIADOR DE OBRAS</label>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <input type="text" id="nomeProjetoAtivo" class="input-tech save-state" style="flex: 2;" placeholder="Nome do Cliente / Obra">
-                    <button type="button" id="btnSalvarProjeto" class="btn-tech-primary" style="flex: 1; background: #10b981; color: white;">💾 Salvar Obra</button>
+        <div class="dashboard">
+            <div class="painel-planta">
+                <div class="controles-planta">
+                    <label class="btn-tech">
+                        📁 Carregar Planta
+                        <input type="file" id="uploadPlanta" accept="image/png, image/jpeg" style="display:none;">
+                    </label>
+                    <button id="btnCalibrar" class="btn-tech" disabled>📐 1. Calibrar</button>
+                    <button id="btnMedir" class="btn-tech" disabled>🎯 2. Medir</button>
+                    <button id="btnLimpar" class="btn-tech-danger" title="Limpar Área de Trabalho">🗑️ Limpar Área</button>
                 </div>
-                <div style="display: flex; gap: 10px; border-top: 1px solid #1e3f33; padding-top: 15px;">
-                    <select id="selectProjetos" class="input-tech" style="flex: 2;">
-                        <option value="">-- Abrir Obra Salva --</option>
-                    </select>
-                    <button type="button" id="btnCarregarProjeto" class="btn-tech" style="flex: 1; border-color: #10b981; color: #10b981;">📂 Abrir</button>
-                    <button type="button" id="btnExcluirProjeto" class="btn-tech-danger" style="padding: 12px; width: auto;" title="Excluir Obra">❌</button>
+                <div class="status-bar" id="statusBar">Aguardando upload do projeto...</div>
+                <div class="canvas-container">
+                    <canvas id="areaDesenho"></canvas>
                 </div>
             </div>
 
-            <!-- PAREDES E OITÕES -->
-            <div class="controle-insercao">
-                <label class="titulo-secao">1. CONFIGURAÇÃO DE PAREDES E OITÕES</label>
-                <div class="form-group" style="margin-top:10px;">
-                    <select id="espessuraCorrente" class="input-tech save-state">
-                        <option value="10">Bloco 10 cm (Painel Fino)</option>
-                        <option value="13">Bloco 13 cm</option>
-                        <option value="15">Bloco 15 cm</option>
-                        <option value="20">Bloco 20 cm (Robusto)</option>
-                    </select>
-                </div>
+            <div class="painel-calculadora container">
                 
-                <div class="insercao-manual">
-                    <input type="number" id="comprimentoManual" class="input-tech" step="0.01" placeholder="Comp. Parede Linear (m)">
-                    <button type="button" id="btnAdicionarManual" class="btn-tech-primary">Add Parede</button>
+                <div class="controle-insercao" style="border-left-color: #10b981; background: #0f1c18;">
+                    <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #10b981;">📁 GERENCIADOR DE OBRAS</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <input type="text" id="nomeProjetoAtivo" class="input-tech save-state" style="flex: 2;" placeholder="Nome do Cliente / Obra">
+                        <button type="button" id="btnSalvarProjeto" class="btn-tech-primary" style="flex: 1; background: #10b981; color: white;">💾 Salvar Obra</button>
+                    </div>
+                    <div style="display: flex; gap: 10px; border-top: 1px solid #1e3f33; padding-top: 15px;">
+                        <select id="selectProjetos" class="input-tech" style="flex: 2;">
+                            <option value="">-- Abrir Obra Salva --</option>
+                        </select>
+                        <button type="button" id="btnCarregarProjeto" class="btn-tech" style="flex: 1; border-color: #10b981; color: #10b981;">📂 Abrir</button>
+                        <button type="button" id="btnExcluirProjeto" class="btn-tech-danger" style="padding: 12px; width: auto;" title="Excluir Obra">❌</button>
+                    </div>
                 </div>
 
-                <div class="insercao-manual" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #334155;">
-                    <input type="number" id="baseOitao" class="input-tech" step="0.01" placeholder="Base Oitão (m)">
-                    <input type="number" id="alturaOitao" class="input-tech" step="0.01" placeholder="Alt. Oitão (m)">
-                    <button type="button" id="btnAdicionarOitao" class="btn-tech-primary" style="background: #8b5cf6;">🔺 Add Oitão</button>
+                <div class="controle-insercao">
+                    <label class="titulo-secao">1. CONFIGURAÇÃO DE PAREDES E OITÕES</label>
+                    <div class="form-group" style="margin-top:10px;">
+                        <select id="espessuraCorrente" class="input-tech save-state">
+                            <option value="10">Bloco 10 cm (Painel Fino)</option>
+                            <option value="13">Bloco 13 cm</option>
+                            <option value="15">Bloco 15 cm</option>
+                            <option value="20">Bloco 20 cm (Robusto)</option>
+                        </select>
+                    </div>
+                    <div class="insercao-manual">
+                        <input type="number" id="comprimentoManual" class="input-tech" step="0.01" placeholder="Comp. Parede Linear (m)">
+                        <button type="button" id="btnAdicionarManual" class="btn-tech-primary">Add Parede</button>
+                    </div>
+                    <div class="insercao-manual" style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #334155;">
+                        <input type="number" id="baseOitao" class="input-tech" step="0.01" placeholder="Base Oitão (m)">
+                        <input type="number" id="alturaOitao" class="input-tech" step="0.01" placeholder="Alt. Oitão (m)">
+                        <button type="button" id="btnAdicionarOitao" class="btn-tech-primary" style="background: #8b5cf6;">🔺 Add Oitão</button>
+                    </div>
                 </div>
+
+                <div class="lista-paredes">
+                    <table>
+                        <thead>
+                            <tr><th>ID / Tipo</th><th>Medidas</th><th>Esp.</th><th>Vãos(m²)</th><th>Ação</th></tr>
+                        </thead>
+                        <tbody id="corpoTabela"></tbody>
+                    </table>
+                </div>
+                <button id="btnExportarExcel" class="btn-tech-excel" style="margin-bottom: 15px;">📊 Exportar Lista para Excel (.CSV)</button>
+
+                <div class="controle-insercao">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="titulo-secao" style="margin: 0; border: none;">2. INSUMOS DE INSTALAÇÃO</label>
+                        <label class="switch"><input type="checkbox" id="chkInsumos" class="save-state" checked><span class="slider"></span></label>
+                    </div>
+                    <div id="painelInsumos">
+                        <div class="form-group-inline">
+                            <label>Argamassa (20kg): R$</label>
+                            <input type="number" id="precoArgamassa" class="input-tech-small save-state" step="0.01" value="45.00">
+                        </div>
+                        <div class="form-group-inline">
+                            <label>Espuma PU (500ml): R$</label>
+                            <input type="number" id="precoPU" class="input-tech-small save-state" step="0.01" value="35.00">
+                        </div>
+                        <div class="form-group-inline">
+                            <label>Tela Fibra (Rolo 50m): R$</label>
+                            <input type="number" id="precoTela" class="input-tech-small save-state" step="0.01" value="50.00">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controle-insercao">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="titulo-secao" style="margin: 0; border: none;">3. COMPARATIVO (BLOCOK vs CONVENCIONAL)</label>
+                        <label class="switch"><input type="checkbox" id="chkComparativo" class="save-state" checked><span class="slider"></span></label>
+                    </div>
+                    <div id="painelComparativo">
+                        <p style="font-size:11px; color:#94a3b8; margin-bottom: 10px; margin-top:0;">Preencha o custo médio da sua região.</p>
+                        <div class="form-group-inline">
+                            <label>Convencional (Mat. Bruto/m²): R$</label>
+                            <input type="number" id="custoConvBruto" class="input-tech-small save-state" step="0.01" value="55.00">
+                        </div>
+                        <div class="form-group-inline">
+                            <label>Convencional (Parede Pronta/m²): R$</label>
+                            <input type="number" id="custoConvPronto" class="input-tech-small save-state" step="0.01" value="250.00">
+                        </div>
+                        <div class="form-group-inline">
+                            <label>BLOCOK (Mont. + Acabamento/m²): R$</label>
+                            <input type="number" id="custoBlocokMO" class="input-tech-small save-state" step="0.01" value="65.00">
+                        </div>
+                    </div>
+                </div>
+
+                <form id="formCalculadora" class="controle-insercao">
+                    <label class="titulo-secao">DADOS DO PROJETO E CONTATO</label>
+                    <div class="form-group-inline" style="margin-top: 10px;">
+                        <div style="flex: 1; padding-right: 5px;">
+                            <label style="display:block; margin-bottom:5px; font-size: 12px;">WhatsApp do Cliente:</label>
+                            <input type="text" id="whatsappCliente" class="input-tech save-state" placeholder="DDD + Número">
+                        </div>
+                        <div style="flex: 1; padding-left: 5px;">
+                            <label style="display:block; margin-bottom:5px; font-size: 12px;">Pé-direito Geral (m):</label>
+                            <input type="number" id="alturaGlobal" class="input-tech save-state" step="0.01" value="2.80" required>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label style="display:block; margin-bottom:5px; font-size: 12px;">Condição de Pagamento:</label>
+                        <select id="formaPagamento" class="input-tech save-state">
+                            <option value="avista">À Vista</option>
+                            <option value="prazo">A Prazo</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-tech-run" style="margin-top: 15px;">🚀 GERAR PROPOSTA</button>
+                </form>
+
+                <div id="caixaResultado" class="resultado-box" style="display: none;"></div>
             </div>
-
-            <div class="lista-paredes">
-                <table>
-                    <thead>
-                        <tr><th>ID / Tipo</th><th>Medidas</th><th>Esp.</th><th>Vãos(m²)</th><th>Ação</th></tr>
-                    </thead>
-                    <tbody id="corpoTabela"></tbody>
-                </table>
-            </div>
-            <button id="btnExportarExcel" class="btn-tech-excel" style="margin-bottom: 15px;">📊 Exportar Lista para Excel (.CSV)</button>
-
-            <!-- INSUMOS EXTRAS -->
-            <div class="controle-insercao">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <label class="titulo-secao" style="margin: 0; border: none;">2. INSUMOS DE INSTALAÇÃO</label>
-                    <label class="switch"><input type="checkbox" id="chkInsumos" class="save-state" checked><span class="slider"></span></label>
-                </div>
-                <div id="painelInsumos">
-                    <div class="form-group-inline">
-                        <label>Argamassa (20kg): R$</label>
-                        <input type="number" id="precoArgamassa" class="input-tech-small save-state" step="0.01" value="45.00">
-                    </div>
-                    <div class="form-group-inline">
-                        <label>Espuma PU (500ml): R$</label>
-                        <input type="number" id="precoPU" class="input-tech-small save-state" step="0.01" value="35.00">
-                    </div>
-                    <div class="form-group-inline">
-                        <label>Tela Fibra (Rolo 50m): R$</label>
-                        <input type="number" id="precoTela" class="input-tech-small save-state" step="0.01" value="50.00">
-                    </div>
-                </div>
-            </div>
-
-            <!-- COMPARATIVO DE MERCADO -->
-            <div class="controle-insercao">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <label class="titulo-secao" style="margin: 0; border: none;">3. COMPARATIVO (BLOCOK vs CONVENCIONAL)</label>
-                    <label class="switch"><input type="checkbox" id="chkComparativo" class="save-state" checked><span class="slider"></span></label>
-                </div>
-                <div id="painelComparativo">
-                    <p style="font-size:11px; color:#94a3b8; margin-bottom: 10px; margin-top:0;">Preencha o custo médio da sua região.</p>
-                    <div class="form-group-inline">
-                        <label title="Custo do tijolo + cimento + areia por m²">Convencional (Material Bruto/m²): R$</label>
-                        <input type="number" id="custoConvBruto" class="input-tech-small save-state" step="0.01" value="55.00">
-                    </div>
-                    <div class="form-group-inline">
-                        <label title="Tijolo + Reboco + Chapisco + Mão de Obra por m²">Convencional (Parede Pronta/m²): R$</label>
-                        <input type="number" id="custoConvPronto" class="input-tech-small save-state" step="0.01" value="250.00">
-                    </div>
-                    <div class="form-group-inline">
-                        <label title="Mão de obra de montagem + Acabamento Fino do EPS">BLOCOK (Mont. + Acabamento/m²): R$</label>
-                        <input type="number" id="custoBlocokMO" class="input-tech-small save-state" step="0.01" value="65.00">
-                    </div>
-                </div>
-            </div>
-
-            <!-- DADOS FINAIS -->
-            <form id="formCalculadora" class="controle-insercao">
-                <label class="titulo-secao">DADOS DO PROJETO E CONTATO</label>
-                <div class="form-group-inline" style="margin-top: 10px;">
-                    <div style="flex: 1; padding-right: 5px;">
-                        <label style="display:block; margin-bottom:5px; font-size: 12px;">WhatsApp do Cliente:</label>
-                        <input type="text" id="whatsappCliente" class="input-tech save-state" placeholder="DDD + Número" required>
-                    </div>
-                    <div style="flex: 1; padding-left: 5px;">
-                        <label style="display:block; margin-bottom:5px; font-size: 12px;">Pé-direito Geral (m):</label>
-                        <input type="number" id="alturaGlobal" class="input-tech save-state" step="0.01" value="2.80" required>
-                    </div>
-                </div>
-                <div class="form-group" style="margin-top: 10px;">
-                    <label style="display:block; margin-bottom:5px; font-size: 12px;">Condição de Pagamento:</label>
-                    <select id="formaPagamento" class="input-tech save-state">
-                        <option value="avista">À Vista</option>
-                        <option value="prazo">A Prazo</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn-tech-run" style="margin-top: 15px;">🚀 GERAR PROPOSTA</button>
-            </form>
-
-            <div id="caixaResultado" class="resultado-box" style="display: none;"></div>
         </div>
     </div>
+<!-- ADICIONE ESTAS DUAS LINHAS AQUI -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    
     <script src="script.js"></script>
 </body>
 </html>
+  
