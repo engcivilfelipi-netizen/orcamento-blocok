@@ -204,25 +204,27 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     let tagLogoPdf = configVisualNuvem.logo ? `<img src="${configVisualNuvem.logo}" style="max-height: 80px; max-width: ${configVisualNuvem.tamanho}%; display: block; margin-left: auto;">` : '';
 
     // --- HTML DO PDF PRINCIPAL ---
+    // A mágica anti-corte: width 794px fixos e box-sizing
     let htmlPdf = `
-    <div id="pdfContent" style="padding: 20px; padding-top: 10px; font-family: Arial, sans-serif; background: white; color: black; min-height: 800px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: none;">
-            <tr><td style="width: 50%; border: none;"></td><td style="width: 50%; text-align: right; vertical-align: middle; border: none; padding-bottom: 10px;">${tagLogoPdf}</td></tr>
-        </table>
+    <div style="overflow-x: auto; width: 100%; border: 1px solid #e2e8f0; margin-bottom: 20px; background: #e2e8f0; padding: 10px; border-radius: 8px;">
+        <div id="pdfContent" style="width: 794px; min-height: 1123px; padding: 40px; box-sizing: border-box; font-family: Arial, sans-serif; background: white; color: black; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 5px; border: none;">
+                <tr><td style="width: 50%; border: none;"></td><td style="width: 50%; text-align: right; vertical-align: middle; border: none; padding-bottom: 10px;">${tagLogoPdf}</td></tr>
+            </table>
 
-        <div style="border-bottom: 3px solid ${cor}; padding-bottom: 10px; margin-bottom: 20px;">
-            <h1 style="color: #2c3e50; margin: 0 0 5px 0; font-size: 24px;">PROPOSTA COMERCIAL</h1>
-            <p style="margin: 0; font-size: 14px;"><strong>Cliente / Obra:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
-        </div>
-        
-        <h3 style="color: #2c3e50; margin-top: 20px; font-size: 16px;">1. Quantitativo de Painéis Estruturais (${pag.toUpperCase()})</h3>
-        <table class="pdf-table" style="font-size: 13px; width: 100%; text-align: left; border-collapse: collapse;">
-            <tr style="background: ${cor}; color: #fff;">
-                <th style="padding: 8px; border: 1px solid #ccc;">Espessura</th>
-                <th style="padding: 8px; border: 1px solid #ccc;">Área Real</th>
-                <th style="padding: 8px; border: 1px solid #ccc;">Qtd. Peças</th>
-                <th style="padding: 8px; border: 1px solid #ccc;">Subtotal</th>
-            </tr>`;
+            <div style="border-bottom: 3px solid ${cor}; padding-bottom: 10px; margin-bottom: 20px;">
+                <h1 style="color: #2c3e50; margin: 0 0 5px 0; font-size: 24px;">PROPOSTA COMERCIAL</h1>
+                <p style="margin: 0; font-size: 14px;"><strong>Cliente / Obra:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
+            </div>
+            
+            <h3 style="color: #2c3e50; margin-top: 20px; font-size: 16px;">1. Quantitativo de Painéis Estruturais (${pag.toUpperCase()})</h3>
+            <table class="pdf-table" style="font-size: 13px; width: 100%; text-align: left; border-collapse: collapse;">
+                <tr style="background: ${cor}; color: #fff;">
+                    <th style="padding: 8px; border: 1px solid #ccc;">Espessura</th>
+                    <th style="padding: 8px; border: 1px solid #ccc;">Área Real</th>
+                    <th style="padding: 8px; border: 1px solid #ccc;">Qtd. Peças</th>
+                    <th style="padding: 8px; border: 1px solid #ccc;">Subtotal</th>
+                </tr>`;
 
     let totalProdutos = 0; let romaneioRows = '';
     for(let esp in resumo) {
@@ -299,21 +301,23 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <div style="text-align:center; margin-top:15px; padding:10px; color:${cor}; font-weight:bold; border-radius: 4px; border: 1px dashed ${cor}; font-size: 14px;">Economia Estimada: R$ ${econo > 0 ? econo.toLocaleString('pt-BR', {minimumFractionDigits:2}) : "0,00"}</div></div>`;
     }
 
-    htmlPdf += `<p style="font-size:10px; text-align:center; margin-top:30px; color: #95a5a6;">* Documento gerado digitalmente.</p></div>`;
+    htmlPdf += `<p style="font-size:10px; text-align:center; margin-top:30px; color: #95a5a6;">* Documento gerado digitalmente pelo sistema oficial.</p></div></div>`;
 
-    // --- HTML DO ROMANEIO ---
+    // --- HTML DO ROMANEIO (Mesmo Truque de Largura) ---
     let htmlRomaneio = `
-    <div id="pdfRomaneio" style="padding: 40px; font-family: Arial, sans-serif; background: white; color: black; width: 100%; min-height: 800px; border: 1px solid #e2e8f0;">
-        <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
-            <h1 style="margin: 0 0 5px 0; font-size: 22px; text-transform: uppercase;">ORDEM DE SEPARAÇÃO E CARGA (ROMANEIO)</h1>
-            <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
-            <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total:</strong> ${totalM2.toFixed(2)} m²</p>
+    <div style="overflow-x: auto; width: 100%; border: 1px solid #e2e8f0; background: #e2e8f0; padding: 10px; border-radius: 8px;">
+        <div id="pdfRomaneio" style="width: 794px; min-height: 1123px; padding: 40px; box-sizing: border-box; font-family: Arial, sans-serif; background: white; color: black; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; text-align: center;">
+                <h1 style="margin: 0 0 5px 0; font-size: 22px; text-transform: uppercase;">ORDEM DE SEPARAÇÃO E CARGA (ROMANEIO)</h1>
+                <p style="margin: 5px 0;"><strong>Obra / Cliente:</strong> ${nome.toUpperCase()}</p>
+                <p style="margin: 5px 0;"><strong>Data de Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')} | <strong>Área Total:</strong> ${totalM2.toFixed(2)} m²</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+                <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; text-align: left;">Descrição do Item</th><th style="border: 1px solid #000; padding: 8px;">Quantidade para Carga</th></tr>
+                ${romaneioRows}
+            </table>
+            <div style="margin-top: 80px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura Expedição / Motorista</p></div>
         </div>
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
-            <tr style="background: #eee;"><th style="border: 1px solid #000; padding: 8px; text-align: left;">Descrição do Item</th><th style="border: 1px solid #000; padding: 8px;">Quantidade para Carga</th></tr>
-            ${romaneioRows}
-        </table>
-        <div style="margin-top: 80px; text-align: center; font-size: 14px;"><p>____________________________________________________________</p><p>Assinatura Expedição / Motorista</p></div>
     </div>`;
 
     const caixa = document.getElementById('caixaResultado');
@@ -332,20 +336,12 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     
     caixa.style.display = 'block';
 
-    // A MÁGICA: Configuração de PDF que obriga a tela a subir e força largura (anti-tela branca)
+    // PDF SETUP - SEM CORTES NA LATERAL
     const optPDF = {
-        margin: 10,
+        margin: [10, 10, 10, 10],
         filename: `Proposta_${nome.replace(/\s+/g, '_')}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 900 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    
-    const optRomaneio = {
-        margin: 10,
-        filename: `Romaneio_${nome.replace(/\s+/g, '_')}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: 900 },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -356,7 +352,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     
     document.getElementById('btnRom').onclick = () => { 
         window.scrollTo(0,0);
-        html2pdf().set(optRomaneio).from(document.getElementById('pdfRomaneio')).save(); 
+        html2pdf().set(optPDF).from(document.getElementById('pdfRomaneio')).save(); 
     };
     
     document.getElementById('btnZap').onclick = () => {
