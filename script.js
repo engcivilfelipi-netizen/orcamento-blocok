@@ -24,24 +24,32 @@ const canvas = document.getElementById('areaDesenho');
 const ctx = canvas.getContext('2d');
 const statusBar = document.getElementById('statusBar');
 
-
 // ==========================================
 // ☁️ CONEXÃO COM O GOOGLE FIREBASE (NUVEM)
 // ==========================================
-// Felipe, cole as suas chaves geradas no site do Firebase aqui:
-const firebaseConfig = {
-  apiKey: "AIzaSyD_-PVu4YFerz9n9Zeh2dxxdssRjyOmTZA",
-  authDomain: "blocok-os.firebaseapp.com",
-  projectId: "blocok-os",
-  storageBucket: "blocok-os.firebasestorage.app",
-  messagingSenderId: "1017522769680",
-  appId: "1:1017522769680:web:5612e95fd71fc1dd361f95"
-};
+let db = null;
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+try {
+    if (typeof firebase !== 'undefined') {
+        const firebaseConfig = {
+            apiKey: "AIzaSyD_-PVu4YFerz9n9Zeh2dxxdssRjyOmTZA",
+            authDomain: "blocok-os.firebaseapp.com",
+            projectId: "blocok-os",
+            storageBucket: "blocok-os.firebasestorage.app",
+            messagingSenderId: "1017522769680",
+            appId: "1:1017522769680:web:5612e95fd71fc1dd361f95"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        db = firebase.firestore();
+        console.log("Servidor em Nuvem: CONECTADO!");
+    } else {
+        console.error("Alerta: Arquivos do Firebase não encontrados no index.html.");
+    }
+} catch (erro) {
+    console.error("Erro ao iniciar a Nuvem:", erro);
 }
-const db = firebase.firestore();
 
 
 // ==========================================
@@ -78,6 +86,7 @@ function verificarSessao() {
     }
 }
 
+// BOTAO DE LOGIN AGORA É A PROVA DE FALHAS
 document.getElementById('btnLogin').onclick = () => {
     const user = document.getElementById('userInput').value.trim().toLowerCase();
     const pass = document.getElementById('passInput').value;
@@ -104,32 +113,24 @@ document.getElementById('btnLogout').onclick = () => {
 // 📁 BANCO DE DADOS NA NUVEM E AUTO-SAVE LOCAL
 // ==========================================
 
-// Busca a lista de obras diretamente do Google
 async function atualizarSelectProjetosNuvem() {
     const select = document.getElementById('selectProjetos');
-    if(!select) return;
+    if(!select || !db) return;
     
-    select.innerHTML = '<option value="">⏳ Carregando obras...</option>';
-    
+    select.innerHTML = '<option value="">⏳ Carregando obras da Nuvem...</option>';
     try {
         const snapshot = await db.collection("obras").get();
         select.innerHTML = '<option value="">-- Abrir Obra da Nuvem --</option>';
-        
         if(snapshot.empty) {
             select.innerHTML = '<option value="">Nenhuma obra salva ainda</option>';
             return;
         }
-
-        snapshot.forEach(doc => {
-            select.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
-        });
+        snapshot.forEach(doc => { select.innerHTML += `<option value="${doc.id}">${doc.id}</option>`; });
     } catch (error) {
-        console.error("Erro ao buscar obras:", error);
         select.innerHTML = '<option value="">Erro ao conectar na nuvem</option>';
     }
 }
 
-// O Auto-Save continua sendo salvo na máquina da pessoa (para ser rápido e não travar se a internet cair)
 function salvarEstadoLocal() {
     const dados = { paredes: paredesMedidas, escala: pixelsPorMetro, inputs: {} };
     document.querySelectorAll('.save-state').forEach(input => {
@@ -153,7 +154,6 @@ function carregarEstadoLocal() {
                 let el = document.getElementById(id);
                 const perfil = sessionStorage.getItem('blocok_perfil');
                 const isPriceField = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO'].includes(id);
-                
                 if(el && !(perfil === 'vendedor' && isPriceField)) {
                     if(el.type === 'checkbox') el.checked = dados.inputs[id];
                     else el.value = dados.inputs[id];
@@ -171,14 +171,13 @@ function carregarEstadoLocal() {
     } catch (erro) { localStorage.removeItem('blocokData'); paredesMedidas = []; }
 }
 
-// Salva a Obra DEFINITIVA na Nuvem do Google
 document.getElementById('btnSalvarProjeto').onclick = async () => {
+    if(!db) return alert("Sua conexão com a Nuvem falhou. Recarregue a página.");
     let nome = document.getElementById('nomeProjetoAtivo').value.trim();
     if(!nome) return alert("Digite um nome para a obra no painel Gerenciador antes de salvar.");
     
     let btn = document.getElementById('btnSalvarProjeto');
-    btn.innerText = "⏳ Salvando na Nuvem...";
-    btn.disabled = true;
+    btn.innerText = "⏳ Salvando..."; btn.disabled = true;
 
     salvarEstadoLocal(); 
     const currentData = JSON.parse(localStorage.getItem('blocokData'));
@@ -186,102 +185,72 @@ document.getElementById('btnSalvarProjeto').onclick = async () => {
     if (currentImage) currentData.imagem = currentImage;
 
     try {
-        // Manda o pacote para o Firestore
         await db.collection("obras").doc(nome).set(currentData);
         alert(`Obra '${nome}' enviada para a Nuvem com sucesso!`);
         atualizarSelectProjetosNuvem();
     } catch (error) {
-        console.error("Erro ao salvar:", error);
-        alert("Erro ao salvar na nuvem. Verifique sua conexão com a internet ou se as chaves do Firebase estão corretas.");
+        alert("Erro ao salvar na nuvem. Verifique sua conexão.");
     } finally {
-        btn.innerText = "💾 Salvar Obra";
-        btn.disabled = false;
+        btn.innerText = "💾 Salvar na Nuvem"; btn.disabled = false;
     }
 };
 
-// Baixa a obra da Nuvem
 document.getElementById('btnCarregarProjeto').onclick = async () => {
+    if(!db) return alert("Conexão com a Nuvem falhou.");
     let nome = document.getElementById('selectProjetos').value;
     if(!nome) return alert("Selecione uma obra na lista para abrir.");
     
     if(confirm("Isso vai substituir a Área de Trabalho atual com os dados da nuvem. Deseja continuar?")) {
         let btn = document.getElementById('btnCarregarProjeto');
         btn.innerText = "⏳ Baixando...";
-        
         try {
             const docRef = await db.collection("obras").doc(nome).get();
             if (docRef.exists) {
                 let dados = docRef.data();
                 if (dados.imagem) {
-                    localStorage.setItem('blocokImage', dados.imagem);
-                    delete dados.imagem;
+                    localStorage.setItem('blocokImage', dados.imagem); delete dados.imagem;
                 } else { localStorage.removeItem('blocokImage'); }
                 localStorage.setItem('blocokData', JSON.stringify(dados));
                 location.reload(); 
-            } else {
-                alert("Obra não encontrada no servidor.");
-            }
-        } catch(error) {
-            console.error(error);
-            alert("Erro ao baixar da nuvem.");
-        } finally {
-            btn.innerText = "📂 Abrir";
-        }
+            } else { alert("Obra não encontrada."); }
+        } catch(error) { alert("Erro ao baixar."); } finally { btn.innerText = "📂 Abrir"; }
     }
 };
 
-// Exclui a obra da Nuvem
 document.getElementById('btnExcluirProjeto').onclick = async () => {
+    if(!db) return;
     let nome = document.getElementById('selectProjetos').value;
     if(!nome) return alert("Selecione um projeto na lista para excluir.");
     if(confirm(`Tem certeza que deseja APAGAR DEFINITIVAMENTE a obra '${nome}' do Servidor Oficial?`)) {
-        try {
-            await db.collection("obras").doc(nome).delete();
-            alert("Obra excluída da Nuvem.");
-            atualizarSelectProjetosNuvem();
-        } catch(error) {
-            console.error(error);
-            alert("Erro ao excluir.");
-        }
+        try { await db.collection("obras").doc(nome).delete(); alert("Obra excluída da Nuvem."); atualizarSelectProjetosNuvem(); } catch(error) { alert("Erro ao excluir."); }
     }
 };
 
 document.getElementById('btnLimpar').onclick = () => {
-    if(confirm("ATENÇÃO: Isso vai apagar a Área de Trabalho do seu computador. Continuar?")) {
+    if(confirm("ATENÇÃO: Isso vai apagar a Área de Trabalho. Continuar?")) {
         localStorage.removeItem('blocokData'); localStorage.removeItem('blocokImage');
         location.reload(); 
     }
 };
 
-document.querySelectorAll('.save-state').forEach(input => {
-    input.addEventListener('change', salvarEstadoLocal); input.addEventListener('input', salvarEstadoLocal);
-});
-
-const chkInsumos = document.getElementById('chkInsumos');
-const painelInsumos = document.getElementById('painelInsumos');
+document.querySelectorAll('.save-state').forEach(input => { input.addEventListener('change', salvarEstadoLocal); input.addEventListener('input', salvarEstadoLocal); });
+const chkInsumos = document.getElementById('chkInsumos'); const painelInsumos = document.getElementById('painelInsumos');
 chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstadoLocal(); });
-
-const chkComparativo = document.getElementById('chkComparativo');
-const painelComparativo = document.getElementById('painelComparativo');
+const chkComparativo = document.getElementById('chkComparativo'); const painelComparativo = document.getElementById('painelComparativo');
 chkComparativo.addEventListener('change', () => { painelComparativo.style.display = chkComparativo.checked ? 'block' : 'none'; salvarEstadoLocal(); });
-
 
 // ==========================================
 // 🛠️ LEVANTAMENTO E CALCULADORA
 // ==========================================
 
 document.getElementById('uploadPlanta').onchange = (e) => {
-    const reader = new FileReader();
-    reader.onload = (ev) => { imagemPlanta.src = ev.target.result; salvarEstadoLocal(); }
+    const reader = new FileReader(); reader.onload = (ev) => { imagemPlanta.src = ev.target.result; salvarEstadoLocal(); }
     reader.readAsDataURL(e.target.files[0]);
 };
 
 imagemPlanta.onload = () => {
-    canvas.width = imagemPlanta.width; canvas.height = imagemPlanta.height;
-    ctx.drawImage(imagemPlanta, 0, 0);
-    document.getElementById('btnCalibrar').disabled = false;
-    document.getElementById('btnCalibrar').style.borderColor = '#00f0ff';
-    document.getElementById('btnCalibrar').style.color = '#00f0ff';
+    canvas.width = imagemPlanta.width; canvas.height = imagemPlanta.height; ctx.drawImage(imagemPlanta, 0, 0);
+    document.getElementById('btnCalibrar').disabled = false; document.getElementById('btnCalibrar').style.borderColor = '#00f0ff'; document.getElementById('btnCalibrar').style.color = '#00f0ff';
     statusBar.innerText = "Planta pronta.";
 };
 
@@ -303,11 +272,8 @@ canvas.onclick = (e) => {
         let real = prompt("Quantos METROS REAIS tem essa linha? (Ex: 0.80)");
         if(real && !isNaN(real.replace(',','.'))) {
             pixelsPorMetro = Math.sqrt(Math.pow(x-ponto1.x, 2) + Math.pow(y-ponto1.y, 2)) / parseFloat(real.replace(',','.'));
-            document.getElementById('btnMedir').disabled = false;
-            document.getElementById('btnMedir').style.borderColor = '#ff6b00';
-            document.getElementById('btnMedir').style.color = '#ff6b00';
-            estadoAtual = 'ocioso'; statusBar.innerText = "Escala pronta.";
-            salvarEstadoLocal();
+            document.getElementById('btnMedir').disabled = false; document.getElementById('btnMedir').style.borderColor = '#ff6b00'; document.getElementById('btnMedir').style.color = '#ff6b00';
+            estadoAtual = 'ocioso'; statusBar.innerText = "Escala pronta."; salvarEstadoLocal();
         }
     } else if (estadoAtual === 'medindo_p1') {
         ponto1 = {x, y}; estadoAtual = 'medindo_p2';
@@ -322,26 +288,21 @@ canvas.onclick = (e) => {
 };
 
 document.getElementById('btnAdicionarManual').onclick = () => {
-    let input = document.getElementById('comprimentoManual');
-    let v = parseFloat(input.value.replace(',','.'));
-    if(v > 0) adicionarParede(v, document.getElementById('espessuraCorrente').value);
-    input.value = '';
+    let input = document.getElementById('comprimentoManual'); let v = parseFloat(input.value.replace(',','.'));
+    if(v > 0) adicionarParede(v, document.getElementById('espessuraCorrente').value); input.value = '';
 };
 
 document.getElementById('btnAdicionarOitao').onclick = () => {
-    let b = parseFloat(document.getElementById('baseOitao').value.replace(',','.'));
-    let a = parseFloat(document.getElementById('alturaOitao').value.replace(',','.'));
+    let b = parseFloat(document.getElementById('baseOitao').value.replace(',','.')); let a = parseFloat(document.getElementById('alturaOitao').value.replace(',','.'));
     let esp = document.getElementById('espessuraCorrente').value;
     if(b > 0 && a > 0) {
         paredesMedidas.push({ tipo: 'oitao', comp: b, alturaOitao: a, esp: esp, areaVaos: 0, areaFixa: (b * a) / 2 });
-        atualizarTabela(); salvarEstadoLocal();
-        document.getElementById('baseOitao').value = ''; document.getElementById('alturaOitao').value = '';
+        atualizarTabela(); salvarEstadoLocal(); document.getElementById('baseOitao').value = ''; document.getElementById('alturaOitao').value = '';
     } else { alert("Preencha Base e Altura."); }
 };
 
 function adicionarParede(comp, esp) { paredesMedidas.push({ tipo: 'parede', comp: comp, esp: esp, areaVaos: 0, areaFixa: 0 }); atualizarTabela(); salvarEstadoLocal(); }
 function removerP(index) { paredesMedidas.splice(index, 1); atualizarTabela(); salvarEstadoLocal(); }
-
 window.addVao = function(index) {
     let l = prompt(`LARGURA do vão (m):`); if (!l || isNaN(l.replace(',','.'))) return;
     let a = prompt(`ALTURA do vão (m):`); if (!a || isNaN(a.replace(',','.'))) return;
@@ -364,26 +325,23 @@ function atualizarTabela() {
 document.getElementById('btnExportarExcel').onclick = () => {
     if(paredesMedidas.length === 0) return alert("Lista vazia.");
     let csv = "Item;Tipo;Espessura(cm);Comp_Base(m);Altura_Oitao(m);Area_Vaos(m2)\n";
-    paredesMedidas.forEach((p, i) => {
-        csv += `${i+1};${p.tipo ? p.tipo.toUpperCase() : 'PAREDE'};${p.esp};${p.comp.toFixed(2)};${p.tipo === 'oitao' ? p.alturaOitao.toFixed(2) : "-"};${p.areaVaos.toFixed(2)}\n`;
-    });
+    paredesMedidas.forEach((p, i) => { csv += `${i+1};${p.tipo ? p.tipo.toUpperCase() : 'PAREDE'};${p.esp};${p.comp.toFixed(2)};${p.tipo === 'oitao' ? p.alturaOitao.toFixed(2) : "-"};${p.areaVaos.toFixed(2)}\n`; });
     let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
-    let link = document.createElement("a"); link.href = URL.createObjectURL(blob);
-    link.download = `BLOCOK_${new Date().getTime()}.csv`; link.click();
+    let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `BLOCOK_${new Date().getTime()}.csv`; link.click();
 };
 
 // ==========================================
 // 🚀 INICIALIZAÇÃO, PDF E WHATSAPP
 // ==========================================
 
-verificarSessao();
+verificarSessao(); // Isso verifica o login quando a página abre
 
 document.getElementById('formCalculadora').onsubmit = (e) => {
     e.preventDefault();
     salvarEstadoLocal(); 
     if(paredesMedidas.length === 0) return alert("Lista vazia.");
 
-    let nome = document.getElementById('nomeProjetoAtivo').value || document.getElementById('nomeProjeto').value || "Cliente";
+    let nome = document.getElementById('nomeProjetoAtivo').value || document.getElementById('nomeProjeto')?.value || "Cliente";
     let telefone = document.getElementById('whatsappCliente').value.replace(/\D/g, '');
     let h = parseFloat(document.getElementById('alturaGlobal').value);
     let pag = document.getElementById('formaPagamento').value;
@@ -397,9 +355,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         if(!resumoParedes[p.esp]) resumoParedes[p.esp] = { bruta: 0, vaos: 0, liquida: 0 };
         let areaBrutaParede = p.tipo === 'oitao' ? p.areaFixa : (p.comp * h);
         let areaLiquidaParede = Math.max(0, areaBrutaParede - p.areaVaos);
-        resumoParedes[p.esp].bruta += areaBrutaParede;
-        resumoParedes[p.esp].vaos += p.areaVaos;
-        resumoParedes[p.esp].liquida += areaLiquidaParede;
+        resumoParedes[p.esp].bruta += areaBrutaParede; resumoParedes[p.esp].vaos += p.areaVaos; resumoParedes[p.esp].liquida += areaLiquidaParede;
         totalAreaBruta += areaBrutaParede; totalAreaLiquida += areaLiquidaParede;
     });
 
@@ -415,10 +371,8 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
             <table class="pdf-table"><tr><th>Espessura</th><th>Área Bruta</th><th>Descontos</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th></tr>`;
 
     for (let esp in resumoParedes) {
-        let d = resumoParedes[esp];
-        if (d.bruta === 0) continue;
-        let qtd = Math.ceil(d.liquida / 0.81);
-        let preco = precosBlocok[esp][pag] * qtd;
+        let d = resumoParedes[esp]; if (d.bruta === 0) continue;
+        let qtd = Math.ceil(d.liquida / 0.81); let preco = precosBlocok[esp][pag] * qtd;
         qtdTotalBlocos += qtd; valorTotalBlocos += preco;
         html += `<tr><td><strong>${esp} cm</strong></td><td>${d.bruta.toFixed(2)} m²</td><td style="color:#e74c3c;">- ${d.vaos.toFixed(2)} m²</td><td style="color:#27ae60; font-weight:bold;">${d.liquida.toFixed(2)} m²</td><td>${qtd} un.</td><td>R$ ${preco.toLocaleString('pt-BR', {minimumFractionDigits:2})}</td></tr>`;
     }
@@ -447,7 +401,6 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let totalConvBruto = totalAreaLiquida * parseFloat(document.getElementById('custoConvBruto').value || 0);
         let totalBlocokPronto = valorGlobalObra + (totalAreaLiquida * parseFloat(document.getElementById('custoBlocokMO').value || 0));
         let totalBlocokBruto = valorGlobalObra;
-        
         economiaReais = totalConvPronto - totalBlocokPronto;
         
         html += `<h3 style="color:#2c3e50; margin-top:25px;">Análise de Viabilidade</h3>

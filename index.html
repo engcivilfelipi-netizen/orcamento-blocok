@@ -59,14 +59,14 @@
             <div class="painel-calculadora container">
                 
                 <div class="controle-insercao" style="border-left-color: #10b981; background: #0f1c18;">
-                    <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #10b981;">📁 GERENCIADOR DE OBRAS</label>
+                    <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #10b981;">☁️ NUVEM E GERENCIADOR</label>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                         <input type="text" id="nomeProjetoAtivo" class="input-tech save-state" style="flex: 2;" placeholder="Nome do Cliente / Obra">
-                        <button type="button" id="btnSalvarProjeto" class="btn-tech-primary" style="flex: 1; background: #10b981; color: white;">💾 Salvar Obra</button>
+                        <button type="button" id="btnSalvarProjeto" class="btn-tech-primary" style="flex: 1; background: #10b981; color: white;">💾 Salvar na Nuvem</button>
                     </div>
                     <div style="display: flex; gap: 10px; border-top: 1px solid #1e3f33; padding-top: 15px;">
                         <select id="selectProjetos" class="input-tech" style="flex: 2;">
-                            <option value="">-- Abrir Obra Salva --</option>
+                            <option value="">-- Abrir Obra da Nuvem --</option>
                         </select>
                         <button type="button" id="btnCarregarProjeto" class="btn-tech" style="flex: 1; border-color: #10b981; color: #10b981;">📂 Abrir</button>
                         <button type="button" id="btnExcluirProjeto" class="btn-tech-danger" style="padding: 12px; width: auto;" title="Excluir Obra">❌</button>
@@ -173,11 +173,10 @@
             </div>
         </div>
     </div>
-<!-- ADICIONE ESTAS DUAS LINHAS AQUI -->
+
+    <!-- O SEGREDO ESTÁ AQUI: Estas ferramentas do Google DEVEM estar no final do HTML -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    
     <script src="script.js"></script>
 </body>
 </html>
-  
