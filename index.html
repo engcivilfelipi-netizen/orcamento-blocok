@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BLOCOK System | Acesso Restrito</title>
-    <link rel="stylesheet" href="style.css">
+    <!-- O ?v=3 garante que o cache seja limpo de novo -->
+    <link rel="stylesheet" href="style.css?v=3">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -73,7 +74,6 @@
                     </div>
                 </div>
 
-                <!-- NOVO: PAINEL DO ADMIN (Preços Globais) -->
                 <div id="painelAdmin" class="controle-insercao" style="display: none; border-left-color: #f59e0b; background: #1a150b;">
                     <label class="titulo-secao" style="margin: 0 0 10px 0; border: none; color: #f59e0b;">⚙️ PAINEL DO DONO (Tabela de Preços)</label>
                     <p style="font-size: 11px; color: #94a3b8; margin-top: 0; margin-bottom: 15px;">A atualização dos valores altera o sistema de toda a equipe instantaneamente.</p>
@@ -165,7 +165,7 @@
 
                 <div class="controle-insercao">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <label class="titulo-secao" style="margin: 0; border: none;">3. COMPARATIVO (BLOCOK vs CONVENCIONAL)</label>
+                        <label class="titulo-secao" style="margin: 0; border: none;">3. COMPARATIVO DE MERCADO</label>
                         <label class="switch"><input type="checkbox" id="chkComparativo" class="save-state" checked><span class="slider"></span></label>
                     </div>
                     <div id="painelComparativo">
@@ -181,6 +181,21 @@
                         <div class="form-group-inline">
                             <label>BLOCOK (Mont. + Acabamento/m²): R$</label>
                             <input type="number" id="custoBlocokMO" class="input-tech-small save-state" step="0.01" value="65.00">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NOVO: MÓDULO DE CRONOGRAMA -->
+                <div class="controle-insercao">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label class="titulo-secao" style="margin: 0; border: none;">4. ESTIMATIVA DE CRONOGRAMA</label>
+                        <label class="switch"><input type="checkbox" id="chkCronograma" class="save-state" checked><span class="slider"></span></label>
+                    </div>
+                    <div id="painelCronograma">
+                        <p style="font-size:11px; color:#94a3b8; margin-bottom: 10px; margin-top:0;">Baseado no trabalho de 1 dupla (1 Oficial + 1 Auxiliar).</p>
+                        <div class="form-group-inline">
+                            <label>Produtividade da Dupla (m² / dia):</label>
+                            <input type="number" id="produtividadeDiaria" class="input-tech-small save-state" step="0.1" value="15.0">
                         </div>
                     </div>
                 </div>

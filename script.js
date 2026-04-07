@@ -7,7 +7,6 @@ const USUARIOS = {
     "vendedor2": { senha: "vendas02", perfil: "vendedor" }
 };
 
-// Agora os preços começam zerados e são puxados da Nuvem!
 let precosBlocok = {
     "10": { avista: 0, prazo: 0 },
     "13": { avista: 0, prazo: 0 },
@@ -58,11 +57,9 @@ async function carregarPrecosDaNuvem() {
     if (!db) return;
     try {
         const docRef = await db.collection("configuracoes").doc("precosGlobais").get();
-        
         if (docRef.exists) {
             precosBlocok = docRef.data();
         } else {
-            // Se for a primeira vez que entra, ele grava estes preços como padrão inicial na nuvem
             precosBlocok = {
                 "10": { avista: 103.52, prazo: 109.07 },
                 "13": { avista: 113.03, prazo: 118.98 },
@@ -71,8 +68,6 @@ async function carregarPrecosDaNuvem() {
             };
             await db.collection("configuracoes").doc("precosGlobais").set(precosBlocok);
         }
-
-        // Povoa os campos do painel Admin (se o admin estiver logado)
         document.getElementById('p10v').value = precosBlocok["10"].avista;
         document.getElementById('p10p').value = precosBlocok["10"].prazo;
         document.getElementById('p13v').value = precosBlocok["13"].avista;
@@ -81,8 +76,6 @@ async function carregarPrecosDaNuvem() {
         document.getElementById('p15p').value = precosBlocok["15"].prazo;
         document.getElementById('p20v').value = precosBlocok["20"].avista;
         document.getElementById('p20p').value = precosBlocok["20"].prazo;
-        
-        console.log("Tabela de preços sincronizada com a Nuvem.");
     } catch (error) {
         console.error("Erro ao buscar preços:", error);
     }
@@ -102,7 +95,7 @@ document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
     try {
         await db.collection("configuracoes").doc("precosGlobais").set(novosPrecos);
         precosBlocok = novosPrecos;
-        alert("Preços atualizados com sucesso! Toda a equipe já está usando a nova tabela.");
+        alert("Preços atualizados com sucesso!");
     } catch (error) {
         alert("Erro ao salvar preços. Tente novamente.");
     } finally {
@@ -117,18 +110,19 @@ document.getElementById('btnSalvarPrecosGlobais').onclick = async () => {
 
 function aplicarRestricoes(perfil) {
     if (perfil === 'admin') {
-        document.getElementById('painelAdmin').style.display = 'block'; // Mostra gestão de preços
+        document.getElementById('painelAdmin').style.display = 'block'; 
     } else if (perfil === 'vendedor') {
-        document.getElementById('painelAdmin').style.display = 'none'; // Esconde gestão de preços
+        document.getElementById('painelAdmin').style.display = 'none'; 
         document.getElementById('btnLimpar').style.display = 'none';
         document.getElementById('btnExcluirProjeto').style.display = 'none';
         
-        const camposBloqueados = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO'];
+        // Bloqueia também a Produtividade Diária para os vendedores!
+        const camposBloqueados = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO', 'produtividadeDiaria'];
         camposBloqueados.forEach(id => {
             let campo = document.getElementById(id);
             if(campo) {
                 campo.readOnly = true; campo.style.backgroundColor = "#1e293b"; campo.style.color = "#64748b";
-                campo.title = "Apenas o Admin pode alterar estes valores base.";
+                campo.title = "Apenas o Admin pode alterar este valor.";
             }
         });
     }
@@ -143,7 +137,7 @@ function verificarSessao() {
         aplicarRestricoes(perfil);
         carregarEstadoLocal();
         atualizarSelectProjetosNuvem();
-        carregarPrecosDaNuvem(); // Baixa os preços antes de qualquer cálculo
+        carregarPrecosDaNuvem(); 
     }
 }
 
@@ -204,7 +198,7 @@ function carregarEstadoLocal() {
             for (let id in dados.inputs) {
                 let el = document.getElementById(id);
                 const perfil = sessionStorage.getItem('blocok_perfil');
-                const isPriceField = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO'].includes(id);
+                const isPriceField = ['precoArgamassa', 'precoPU', 'precoTela', 'custoConvBruto', 'custoConvPronto', 'custoBlocokMO', 'produtividadeDiaria'].includes(id);
                 if(el && !(perfil === 'vendedor' && isPriceField)) {
                     if(el.type === 'checkbox') el.checked = dados.inputs[id]; else el.value = dados.inputs[id];
                 }
@@ -255,10 +249,16 @@ document.getElementById('btnLimpar').onclick = () => {
 };
 
 document.querySelectorAll('.save-state').forEach(input => { input.addEventListener('change', salvarEstadoLocal); input.addEventListener('input', salvarEstadoLocal); });
+
 const chkInsumos = document.getElementById('chkInsumos'); const painelInsumos = document.getElementById('painelInsumos');
 chkInsumos.addEventListener('change', () => { painelInsumos.style.display = chkInsumos.checked ? 'block' : 'none'; salvarEstadoLocal(); });
+
 const chkComparativo = document.getElementById('chkComparativo'); const painelComparativo = document.getElementById('painelComparativo');
 chkComparativo.addEventListener('change', () => { painelComparativo.style.display = chkComparativo.checked ? 'block' : 'none'; salvarEstadoLocal(); });
+
+const chkCronograma = document.getElementById('chkCronograma'); const painelCronograma = document.getElementById('painelCronograma');
+chkCronograma.addEventListener('change', () => { painelCronograma.style.display = chkCronograma.checked ? 'block' : 'none'; salvarEstadoLocal(); });
+
 
 // ==========================================
 // 🛠️ LEVANTAMENTO E CALCULADORA
@@ -322,8 +322,11 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     let telefone = document.getElementById('whatsappCliente').value.replace(/\D/g, '');
     let h = parseFloat(document.getElementById('alturaGlobal').value);
     let pag = document.getElementById('formaPagamento').value;
+    
     let incluirInsumos = document.getElementById('chkInsumos').checked;
     let incluirComparativo = document.getElementById('chkComparativo').checked;
+    let incluirCronograma = document.getElementById('chkCronograma').checked;
+    let produtividade = parseFloat(document.getElementById('produtividadeDiaria').value || 15);
 
     let totalAreaBruta = 0, totalAreaLiquida = 0, valorTotalBlocos = 0, qtdTotalBlocos = 0;
     let resumoParedes = {}; 
@@ -344,6 +347,7 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
                 <h1 style="color: #2c3e50; margin: 0 0 5px 0;">PROPOSTA TÉCNICA - SISTEMA BLOCOK</h1>
                 <p><strong>Cliente / Projeto:</strong> ${nome.toUpperCase()} | <strong>Data:</strong> ${new Date().toLocaleDateString('pt-BR')}</p>
             </div>
+            
             <h3 style="color: #2c3e50;">1. Quantitativo de Painéis (${pag.toUpperCase()})</h3>
             <table class="pdf-table"><tr><th>Espessura</th><th>Área Bruta</th><th>Descontos</th><th>Área Real</th><th>Qtd. Peças</th><th>Subtotal</th></tr>`;
 
@@ -372,6 +376,21 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     if(incluirInsumos) html += `<div style="display:flex; justify-content:space-between; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px;"><span>Total Insumos:</span><strong>R$ ${valorTotalInsumos.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div>`;
     html += `<div style="display:flex; justify-content:space-between; font-size:18px; color:#2c3e50; margin-top:10px;"><strong>TOTAL PRODUTOS:</strong><strong style="color:#ff6b00;">R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}</strong></div></div>`;
 
+    // NOVO: INSERÇÃO DO CRONOGRAMA NO PDF
+    let diasEstimados = 0;
+    if (incluirCronograma && totalAreaLiquida > 0) {
+        diasEstimados = Math.ceil(totalAreaLiquida / produtividade);
+        html += `
+            <h3 style="color: #2c3e50; margin-top: 25px;">3. Cronograma Estimado de Montagem</h3>
+            <div style="background: #f8f9fa; border: 1px solid #ccc; padding: 15px; border-radius: 6px; border-left: 5px solid #10b981;">
+                <p style="margin: 0 0 10px 0; color: #333; font-size: 13px;">Baseado em uma produtividade média de <strong>${produtividade} m²/dia</strong> por equipe (1 Oficial + 1 Auxiliar).</p>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 14px; font-weight: bold;">Tempo total para montagem dos painéis:</span>
+                    <strong style="font-size: 18px; color: #10b981; background: #e8f8f5; padding: 5px 15px; border-radius: 4px;">${diasEstimados} dia(s) útil(eis)</strong>
+                </div>
+            </div>`;
+    }
+
     let economiaReais = 0;
     if (incluirComparativo) {
         let totalConvPronto = totalAreaLiquida * parseFloat(document.getElementById('custoConvPronto').value || 0);
@@ -380,7 +399,9 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
         let totalBlocokBruto = valorGlobalObra;
         economiaReais = totalConvPronto - totalBlocokPronto;
         
-        html += `<h3 style="color:#2c3e50; margin-top:25px;">Análise de Viabilidade</h3>
+        let tituloNumeracao = incluirCronograma ? "4" : "3";
+        
+        html += `<h3 style="color:#2c3e50; margin-top:25px;">${tituloNumeracao}. Análise de Viabilidade Financeira</h3>
             <div class="box-comparativo">
             <h4 style="margin: 0 0 10px 0; color: #555;">A. Somente Material (Alvenaria Bruta)</h4>
             <div class="grafico-linha"><span class="lbl-grafico">Tijolo Conv.</span><div class="barra-bg"><div class="barra-fill-bad" style="width: 100%;">&nbsp;</div></div><span class="val-grafico" style="color:#e74c3c;">R$ ${totalConvBruto.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span></div>
@@ -410,7 +431,13 @@ document.getElementById('formCalculadora').onsubmit = (e) => {
     document.getElementById('sendWhatsApp').onclick = () => {
         if(!telefone) return alert("Preencha o WhatsApp do cliente.");
         let texto = `*PROPOSTA TÉCNICA - BLOCOK* 🧱\n\nOlá, *${nome.toUpperCase()}*! Segue o resumo:\n\n📏 *Área Total:* ${totalAreaLiquida.toFixed(2)} m²\n💰 *TOTAL PRODUTOS:* R$ ${valorGlobalObra.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
-        if(economiaReais > 0) texto += `✅ *Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
+        
+        // NOVO: Adicionando Cronograma no Zap
+        if(incluirCronograma && diasEstimados > 0) {
+            texto += `⏱️ *Tempo de Montagem:* Apenas ${diasEstimados} dia(s) útil(eis)!\n`;
+        }
+
+        if(economiaReais > 0) texto += `✅ *Economia Estimada:* R$ ${economiaReais.toLocaleString('pt-BR', {minimumFractionDigits:2})} em relação à alvenaria pronta!\n`;
         texto += `\nEstou enviando o *PDF detalhado* a seguir!`;
         window.open(`https://api.whatsapp.com/send?phone=55${telefone}&text=${encodeURIComponent(texto)}`, '_blank');
     };
