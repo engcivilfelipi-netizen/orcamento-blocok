@@ -3,31 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BLOCOK OS | Professional SaaS</title>
-    <!-- Versão 15 para limpar o cache -->
-    <link rel="stylesheet" href="style.css?v=15">
+    <title>BLOCOK OS | Plataforma Profissional</title>
+    <link rel="stylesheet" href="style.css?v=21">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 </head>
 <body>
 
     <div id="loginOverlay" class="login-overlay">
         <div class="login-box">
-            <div class="login-header"><span class="highlight">BLOCOK</span> OS<p>Acesso Restrito - Google Cloud</p></div>
-            <div class="form-group"><label>E-mail:</label><input type="email" id="userInput" class="input-tech" placeholder="seu@email.com"></div>
-            <div class="form-group"><label>Senha:</label><input type="password" id="passInput" class="input-tech" placeholder="******"></div>
+            <div class="login-header"><span class="highlight">BLOCOK</span> OS<p>Acesso Restrito - Infraestrutura Google</p></div>
+            <div class="form-group"><label>E-mail Corporativo:</label><input type="email" id="userInput" class="input-tech" placeholder="unidade@blocok.com"></div>
+            <div class="form-group"><label>Senha de Acesso:</label><input type="password" id="passInput" class="input-tech" placeholder="******"></div>
             <button id="btnLogin" class="btn-tech-run">AUTENTICAR NO SERVIDOR</button>
-            <p id="loginError" style="color: #ef4444; font-size: 12px; margin-top: 10px; display: none;">❌ Falha na autenticação!</p>
+            <p id="loginError" style="color: #ef4444; font-size: 12px; margin-top: 10px; display: none;">❌ Falha na autenticação da unidade!</p>
         </div>
     </div>
 
     <div id="mainContent" style="display: none;">
         <div class="header-main">
-            <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1400px; margin: 0 auto; padding: 0 20px;">
-                <div style="text-align: left;">
+            <div class="header-container">
+                <div class="brand">
                     <h1><span class="highlight">BLOCOK</span> OS</h1>
-                    <p id="infoLogado" style="font-size: 12px; color: #10b981;">Conectado como: ...</p>
+                    <div class="badge-container">
+                        <span id="nomeFranquia" class="badge-franquia">CARREGANDO...</span>
+                        <p id="infoLogado" style="font-size: 11px; color: #94a3b8; margin: 0;"></p>
+                    </div>
                 </div>
-                <button id="btnLogout" class="btn-tech-danger" style="width: auto; padding: 10px 20px;">🚪 Sair</button>
+                <button id="btnLogout" class="btn-tech-danger">🚪 Sair</button>
             </div>
         </div>
 
@@ -39,104 +44,57 @@
                     <button id="btnMedir" class="btn-tech" disabled>🎯 Medir</button>
                     <button id="btnLimpar" class="btn-tech-danger">🗑️ Limpar</button>
                 </div>
-                <div class="status-bar" id="statusBar">Conectando...</div>
+                <div class="status-bar" id="statusBar">Conectado à Nuvem Segura</div>
                 <div class="canvas-container"><canvas id="areaDesenho"></canvas></div>
             </div>
 
             <div class="painel-calculadora container">
-                
-                <div class="controle-insercao" style="border-left-color: #10b981; background: #0f1c18;">
-                    <label class="titulo-secao" style="color: #10b981;">☁️ NUVEM E GERENCIADOR</label>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <input type="text" id="nomeProjetoAtivo" class="input-tech save-state" placeholder="Nome da Obra">
-                        <button id="btnSalvarProjeto" class="btn-tech-primary" style="background: #10b981;">💾 Salvar</button>
+                <div class="controle-insercao" style="border-left: 4px solid #10b981;">
+                    <label class="titulo-secao">☁️ GERENCIADOR DA UNIDADE</label>
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="nomeProjetoAtivo" class="input-tech" placeholder="Nome da Obra">
+                        <button id="btnSalvarProjeto" class="btn-tech-primary">💾 Salvar</button>
                     </div>
                     <div style="display: flex; gap: 10px;">
-                        <select id="selectProjetos" class="input-tech" style="flex: 2;"><option value="">Carregando...</option></select>
-                        <button id="btnCarregarProjeto" class="btn-tech" style="flex: 1;">📂 Abrir</button>
-                        <button id="btnExcluirProjeto" class="btn-tech-danger" style="width: auto;">❌</button>
+                        <select id="selectProjetos" class="input-tech"><option value="">Buscando obras...</option></select>
+                        <button id="btnCarregarProjeto" class="btn-tech">📂 Abrir</button>
+                        <button id="btnExcluirProjeto" class="btn-tech-danger">❌</button>
                     </div>
                 </div>
 
-                <div id="painelAdmin" class="controle-insercao" style="display: none; border-left-color: #f59e0b; background: #1a150b;">
-                    <label class="titulo-secao" style="color: #f59e0b;">⚙️ PAINEL DO DONO</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div><label style="font-size:10px;">B10 (V/P)</label><div style="display:flex;gap:2px;"><input type="number" id="p10v" class="input-tech"><input type="number" id="p10p" class="input-tech"></div></div>
-                        <div><label style="font-size:10px;">B13 (V/P)</label><div style="display:flex;gap:2px;"><input type="number" id="p13v" class="input-tech"><input type="number" id="p13p" class="input-tech"></div></div>
-                        <div><label style="font-size:10px;">B15 (V/P)</label><div style="display:flex;gap:2px;"><input type="number" id="p15v" class="input-tech"><input type="number" id="p15p" class="input-tech"></div></div>
-                        <div><label style="font-size:10px;">B20 (V/P)</label><div style="display:flex;gap:2px;"><input type="number" id="p20v" class="input-tech"><input type="number" id="p20p" class="input-tech"></div></div>
-                    </div>
-                    <div style="margin-top:10px;"><label style="font-size:10px;">Desconto Máximo Vendedor (%):</label><input type="number" id="descontoMax" class="input-tech"></div>
-                    <button id="btnSalvarPrecosGlobais" class="btn-tech-primary" style="background: #f59e0b; margin-top: 10px; width: 100%;">💾 ATUALIZAR TABELA</button>
-                    
-                    <div style="margin-top: 15px; padding: 10px; background: #0c111a; border-radius: 6px;">
-                        <label style="color:#3b82f6; font-size:11px;">🎨 IDENTIDADE VISUAL</label>
-                        <label class="btn-tech" style="display:block; text-align:center; margin-top:5px;">📷 Logo PDF<input type="file" id="uploadLogoEmpresa" accept="image/*" style="display:none;"></label>
-                        <input type="color" id="inputCorDestaque" value="#ff6b00" style="width:100%; height:30px; margin-top:5px;">
-                        <button id="btnSalvarVisuais" class="btn-tech-primary" style="width:100%; margin-top:5px; background:#1e3a8a;">💾 Salvar Visual</button>
-                    </div>
+                <div id="painelAdmin" class="controle-insercao" style="display: none; border-left: 4px solid #f59e0b;">
+                    <label class="titulo-secao">⚙️ PAINEL ADMINISTRATIVO</label>
+                    <p style="font-size: 10px; color: #94a3b8; margin-bottom: 10px;">Edite os preços da unidade no Firebase Console.</p>
+                    <button id="btnAbrirConfig" class="btn-tech" style="width: 100%;">Acessar Tabelas de Preço</button>
                 </div>
 
                 <div class="controle-insercao">
-                    <label class="titulo-secao">1. CONFIGURAÇÃO DE PAREDES</label>
-                    <select id="espessuraCorrente" class="input-tech save-state">
+                    <label class="titulo-secao">1. SELEÇÃO DE MATERIAL</label>
+                    <select id="espessuraCorrente" class="input-tech">
                         <option value="10">Bloco 10 cm</option><option value="13">Bloco 13 cm</option><option value="15">Bloco 15 cm</option><option value="20">Bloco 20 cm</option>
                     </select>
-                    <div class="insercao-manual" style="margin-top:10px;">
-                        <input type="number" id="comprimentoManual" class="input-tech" placeholder="Comp. Parede (m)">
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="number" id="comprimentoManual" class="input-tech" placeholder="Comp. (m)">
                         <button id="btnAdicionarManual" class="btn-tech-primary">Add</button>
                     </div>
                 </div>
 
                 <div class="lista-paredes"><table><thead><tr><th>ID</th><th>Medida</th><th>Esp.</th><th>Ação</th></tr></thead><tbody id="corpoTabela"></tbody></table></div>
 
-                <div class="controle-insercao">
-                    <div style="display:flex; justify-content:space-between; align-items:center;"><label class="titulo-secao" style="border:none;">2. INSUMOS</label><label class="switch"><input type="checkbox" id="chkInsumos" checked class="save-state"><span class="slider"></span></label></div>
-                    <div id="painelInsumos">
-                        <div class="form-group-inline"><label>Argamassa (R$):</label><input type="number" id="precoArgamassa" class="input-tech-small save-state" value="45.00"></div>
-                        <div class="form-group-inline"><label>Espuma PU (R$):</label><input type="number" id="precoPU" class="input-tech-small save-state" value="35.00"></div>
-                        <div class="form-group-inline"><label>Tela Fibra (R$):</label><input type="number" id="precoTela" class="input-tech-small save-state" value="50.00"></div>
-                    </div>
-                </div>
-
-                <div class="controle-insercao">
-                    <div style="display:flex; justify-content:space-between; align-items:center;"><label class="titulo-secao" style="border:none;">3. COMPARATIVO</label><label class="switch"><input type="checkbox" id="chkComparativo" checked class="save-state"><span class="slider"></span></label></div>
-                    <div id="painelComparativo">
-                        <div class="form-group-inline"><label>Tijolo Pronto (m²):</label><input type="number" id="custoConvPronto" class="input-tech-small save-state" value="250.00"></div>
-                        <div class="form-group-inline"><label>Seu Sist. M.O. (m²):</label><input type="number" id="custoBlocokMO" class="input-tech-small save-state" value="65.00"></div>
-                    </div>
-                </div>
-
-                <div class="controle-insercao">
-                    <div style="display:flex; justify-content:space-between; align-items:center;"><label class="titulo-secao" style="border:none;">4. CRONOGRAMA</label><label class="switch"><input type="checkbox" id="chkCronograma" checked class="save-state"><span class="slider"></span></label></div>
-                    <div id="painelCronograma">
-                        <div class="form-group-inline"><label>m²/Dia (Dupla):</label><input type="number" id="produtividadeDiaria" class="input-tech-small save-state" value="15.0"></div>
-                    </div>
-                </div>
-
                 <form id="formCalculadora" class="controle-insercao">
-                    <label class="titulo-secao">DADOS FINAIS E FECHAMENTO</label>
-                    <input type="text" id="whatsappCliente" class="input-tech save-state" placeholder="WhatsApp (DDD + Número)">
-                    <div style="display: flex; gap: 5px; margin-top: 10px;">
-                        <div style="flex: 1;"><label style="font-size:10px;">Pé-direito (m):</label><input type="number" id="alturaGlobal" class="input-tech save-state" value="2.80" step="0.1"></div>
-                        <div style="flex: 1;"><label style="font-size:10px;">Pagamento:</label><select id="formaPagamento" class="input-tech save-state"><option value="avista">À Vista</option><option value="prazo">A Prazo</option></select></div>
+                    <label class="titulo-secao">DADOS DO FECHAMENTO</label>
+                    <input type="text" id="whatsappCliente" class="input-tech" placeholder="WhatsApp do Cliente">
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <div style="flex: 1;"><label style="font-size:10px;">Altura (m):</label><input type="number" id="alturaGlobal" class="input-tech" value="2.80" step="0.1"></div>
+                        <div style="flex: 1;"><label style="font-size:10px;">Pagamento:</label><select id="formaPagamento" class="input-tech"><option value="avista">À Vista</option><option value="prazo">A Prazo</option></select></div>
                     </div>
-                    <div style="display: flex; gap: 5px; margin-top: 10px;">
-                        <div style="flex: 1;"><label style="font-size:10px; color:#10b981;">Frete (R$):</label><input type="number" id="valorFrete" class="input-tech save-state" value="0"></div>
-                        <div style="flex: 1;"><label style="font-size:10px; color:#ef4444;">Desconto (%):</label><input type="number" id="valorDesconto" class="input-tech save-state" value="0"></div>
-                    </div>
-                    <button type="submit" class="btn-tech-run" style="margin-top: 15px;">🚀 GERAR PROPOSTA</button>
+                    <button type="submit" class="btn-tech-run" style="margin-top: 15px;">🚀 GERAR PROPOSTA COMERCIAL</button>
                 </form>
 
                 <div id="caixaResultado" class="resultado-box" style="display: none;"></div>
             </div>
         </div>
     </div>
-
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <!-- Versão 15 para limpar o cache do JS -->
-    <script src="script.js?v=15"></script>
+    <script src="script.js?v=21"></script>
 </body>
 </html>
